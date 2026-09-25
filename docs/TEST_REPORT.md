@@ -33,7 +33,7 @@ Dátum: 2026-09-25. Mérföldkő: M0–M5 kész; M6 nyitva; M7 részben megvaló
 | Katalógus-lapozás és API | Sikeres | Adatbázisoldali lapozás, 12 rekord/oldal, rövid metaadat-gyorsítótár és 5 másodperces azonos kérésközösítés. A publikus JSON csak kártyaadatokat tartalmaz; válasz `private, no-store`. A termékadatlap adatbázisban slug alapján egy rekordot kérdez le. |
 | SEO és billentyűzetes alapok | Részben kész | Meta leírás, fókuszjelölés és csökkentett mozgás támogatása elkészült; kanonikus domain, sitemap, robots és kézi böngészős próba nyitott. |
 | Worker leállás | Kódút tesztelt; valódi jelpróba nyitott | Két egységteszt igazolja a kíméletes leállítási sorrendet és a hibaág kényszerített lezárását. A Windowsos futtatóból küldött megszakítás nem adott `worker.stopped` naplót; valós környezeti próbáig nem tekinthető igazoltnak. |
-| CI adatbázis-környezet | Helyi parancsokkal egyező futtatásra állítva; távoli futásra vár | GitHub Actions PostgreSQL 17 szolgáltatást, migrációt és `--configLoader runner` tesztfuttatást használ; távoli Actions-futtatás még nem indult. |
+| CI adatbázis-környezet | Helyi parancsokkal egyező futtatásra állítva; távoli futás blokkolt | A GitHub Actions PostgreSQL 17 szolgáltatást, migrációt és `--configLoader runner` tesztfuttatást használ. A `main` ág feltöltését a GitHub „Repository not found” hibával elutasította, ezért távoli Actions-futtatás nem indult; a tárhelycím vagy a hozzáférés ellenőrzendő. |
 | Teljes helyi csomag | Sikeres | 32 tesztfájl, 124 teszt, lint, típusellenőrzés, Prisma séma/migráció és production build. |
 | Staging, szolgáltatói sandbox | Nem ellenőrzött | Staging hozzáférés és SimplePay/Számlázz.hu/MailerSend hitelesítés nincs; külső művelet nem történt. |
 

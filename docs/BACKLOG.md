@@ -44,7 +44,7 @@ Az elsődleges követelményjegyzék: `HC_Home_Fitness_GPT6_Luna_fejlesztesi_ter
 - [x] M5 – rendelések és készlet: idempotens vendégigény, pillanatképek, korlátozott vendéghozzáférés és műveleti készletdöntés.
 - [ ] M6 – fizetés és visszatérítés.
 - [ ] M7 – admin, teljesítés, számla és értesítések.
-- [ ] M8 – élesítés előtti ellenőrzés. Helyben sikeres 32/124 teszt, lint, típusellenőrzés, séma/migráció-ellenőrzés, build, production smoke, napló-titokmaszkolás, mentés-visszaállítás és a 1000 termék/50 kliens/10 perces katalógus API-próba (p95 213 ms, 0% hiba). A CI távoli futása, tulajdonos által későbbre halasztott domain/jogi adatok, böngészős hozzáférhetőség, worker valódi jelre történő leállása és M6/M7 külső szolgáltatói kapui nyitottak.
+- [ ] M8 – élesítés előtti ellenőrzés. Helyben sikeres 32/124 teszt, lint, típusellenőrzés, séma/migráció-ellenőrzés, build, production smoke, napló-titokmaszkolás, mentés-visszaállítás és a 1000 termék/50 kliens/10 perces katalógus API-próba (p95 213 ms, 0% hiba). A távoli CI egyelőre nem indult: az első feltöltést a GitHub „Repository not found” hibával utasította el; a tárhelycím vagy a hozzáférés ellenőrzendő. A későbbre halasztott domain/jogi adatok, böngészős hozzáférhetőség, worker valódi jelre történő leállása és M6/M7 külső szolgáltatói kapui is nyitottak.
 - [ ] M9 – P1 funkciók.
 - [ ] M10 – átadás és éles működés ellenőrzése.
 
