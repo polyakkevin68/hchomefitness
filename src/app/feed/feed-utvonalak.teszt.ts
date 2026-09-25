@@ -1,0 +1,10 @@
+import { beforeEach,describe,expect,it,vi } from "vitest";
+const mocks=vi.hoisted(()=>({list:vi.fn(),config:vi.fn()}));
+vi.mock("@/catalog/katalogus",()=>({listProducts:mocks.list}));
+vi.mock("@/lib/kornyezet-schema",()=>({readAppConfig:mocks.config}));
+import { GET as google } from "./google.xml/route";
+import { GET as arukereso } from "./arukereso.xml/route";
+describe("termékfeed útvonalak",()=>{beforeEach(()=>{vi.clearAllMocks();mocks.config.mockReturnValue({PUBLIC_BASE_URL:"https://bolt.example",CATALOG_ADAPTER:"unas"});mocks.list.mockResolvedValue([]);});
+ it("nem ad hibás vagy félrevezetően üres feedet, ha nincs publikált termék",async()=>{expect((await google()).status).toBe(503);expect((await arukereso()).status).toBe(503);});
+ it("tiltva tartja a feedet nem UNAS termékkatalógusnál",async()=>{mocks.config.mockReturnValue({PUBLIC_BASE_URL:"https://bolt.example",CATALOG_ADAPTER:"fixture"});expect((await google()).status).toBe(503);expect((await arukereso()).status).toBe(503);});
+});

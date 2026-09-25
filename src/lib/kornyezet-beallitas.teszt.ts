@@ -6,6 +6,17 @@ describe("környezet beállításai", () => {
     expect(() => readAppConfig({ APP_ENV: "prod" })).toThrow();
   });
 
+  it("a SimplePay kikapcsolt marad alapból, és hozzáférést követel aktiváláskor", () => {
+    expect(readAppConfig({}).PAYMENT_PROVIDER).toBe("disabled");
+    const config = readAppConfig({ APP_ENV: "production", PAYMENT_PROVIDER: "simplepay", DATABASE_URL: "postgresql://user:pass@db.example/hc" });
+    expect(() => assertSafeProductionConfig(config)).toThrow(/SIMPLEPAY_MERCHANT_ID/);
+  });
+
+  it("éles SimplePayhez nem fogadja el a sandbox végpontot", () => {
+    const config = readAppConfig({ APP_ENV: "production", PAYMENT_PROVIDER: "simplepay", SIMPLEPAY_MERCHANT_ID: "kereskedo", SIMPLEPAY_MERCHANT_KEY: "titok", DATABASE_URL: "postgresql://user:pass@db.example/hc" });
+    expect(() => assertSafeProductionConfig(config)).toThrow(/éles végpontot/);
+  });
+
   it("üres, előkészített UNAS titokhelyek mellett is elindul", () => {
     expect(() => readAppConfig({ CATALOG_ADAPTER: "fixture", UNAS_API_KEY: "", UNAS_HC_ALLOW_PARAM_ID: "" })).not.toThrow();
   });
@@ -18,6 +29,10 @@ describe("környezet beállításai", () => {
   it("productionben adatbázis-konfigurációt követel meg", () => {
     const config = readAppConfig({ APP_ENV: "production", CATALOG_ADAPTER: "disabled" });
     expect(() => assertSafeProductionConfig(config)).toThrow(/DATABASE_URL/);
+  });
+  it("éles MailerSendhez HTTPS hivatkozási címet és számlalink-titkot követel", () => {
+    const config = readAppConfig({ APP_ENV: "production", DATABASE_URL: "postgresql://user:pass@db.example/hc", MAILERSEND_PROVIDER: "mailersend", MAILERSEND_MODE: "live", MAILERSEND_API_KEY: "mail-token", MAILERSEND_FROM_EMAIL: "bolt@example.test", MAILERSEND_FROM_NAME: "HC bolt", PUBLIC_BASE_URL: "http://bolt.example.test", INVOICE_ACCESS_SECRET: "x".repeat(32) });
+    expect(() => assertSafeProductionConfig(config)).toThrow(/HTTPS PUBLIC_BASE_URL/);
   });
   it("csak PostgreSQL URL-t fogad el adatbázis-kapcsolatként", () => {
     expect(() => readAppConfig({ DATABASE_URL: "https://db.example/hc" })).toThrow(/PostgreSQL/);

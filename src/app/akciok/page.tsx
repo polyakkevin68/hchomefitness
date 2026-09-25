@@ -1,0 +1,5 @@
+import Link from "next/link";
+import { getActivePromotionProducts } from "@/catalog/katalogus";
+import { huf } from "@/lib/penzformazas";
+export const dynamic="force-dynamic";
+export default async function AkciokOldal(){const offers=await getActivePromotionProducts();return <main className="product-page"><header className="site-header"><Link className="brand" href="/">HC HOME FITNESS</Link><Link href="/">Katalógus</Link></header><section className="product-related"><p className="eyebrow">AKTUÁLIS KUPONOS AJÁNLATOK</p><h1>Akciók</h1><p>Az itt látható kuponok feltételeit a pénztár ellenőrzi. A termékoldalon és a rendelési ajánlatban szereplő ár az irányadó.</p>{offers.length?<ul>{offers.map(({termek,kuponok})=><li key={termek.sku}><div><Link href={`/termek/${termek.slug}`}>{termek.name}</Link><span>{huf.format(termek.priceHuf)}</span><p>{kuponok.map(k=>k.kod).join(" · ")} · a kupon feltételei szerint</p></div><Link href={`/termek/${termek.slug}`}>Megnézem</Link></li>)}</ul>:<p>Jelenleg nincs közzétett, aktív kuponnal elérhető termék.</p>}</section></main>;}

@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/adatbazis-kapcsolat";
 import { frissitHelyiSzallitmanyt } from "./szerveres-teljesites";
+import { listazKezelendoRendeleseket } from "./szerveres-rendeles";
 
 const dbUrl = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 const helyiAdatbazis = dbUrl !== null && ["localhost", "127.0.0.1", "::1"].includes(dbUrl.hostname)
@@ -63,6 +64,10 @@ describe.skipIf(!helyiAdatbazis)("helyi teljesítési adatbázis", () => {
         allapot: "DELIVERED", futar: "", kovetesiSzam: "", idempotenciaKulcs: `delivered-${azonosito}`,
       }, admin.id);
       expect(kezbesitve.state).toBe("DELIVERED");
+      const adminLista = await listazKezelendoRendeleseket();
+      const adminRendeles = adminLista.find((item) => item.publicId === order.publicId);
+      expect(adminRendeles?.shipment?.state).toBe("DELIVERED");
+      expect(adminRendeles?.events.map((event) => event.toStatus)).toEqual(["shipment_processing", "shipment_shipped", "shipment_delivered"]);
       await expect(frissitHelyiSzallitmanyt(order.publicId, {
         allapot: "PROCESSING", futar: "", kovetesiSzam: "", idempotenciaKulcs: `late-${azonosito}`,
       }, admin.id)).rejects.toThrow("időközben megváltozott");

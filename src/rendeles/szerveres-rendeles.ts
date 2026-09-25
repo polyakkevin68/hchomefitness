@@ -53,7 +53,7 @@ function publicOrderId(now: Date) {
   return `HC-${day}-${randomBytes(6).toString("hex").toUpperCase()}`;
 }
 
-export async function rogzitRendelesiIgenyt(session: string, input: RendelesiIgenyBemenet): Promise<OrderReply> {
+export async function rogzitRendelesiIgenyt(session: string, input: RendelesiIgenyBemenet, vasarloiFiokId?: string): Promise<OrderReply> {
   if (!/^[A-Za-z0-9_-]{40,60}$/.test(session)) throw new RendelesHiba("A kosár munkamenete nem érvényes.", "HIBAS_IGENY");
   const sessionHash = hash(session);
   const requestHash = hash(JSON.stringify({
@@ -108,8 +108,14 @@ export async function rogzitRendelesiIgenyt(session: string, input: RendelesiIge
         || !forrasAdatFriss(current.termek.lastImportedAt, arKorhatar, now);
     });
     if (hasChanged || quote.termekOsszegHuf !== osszeg.termekOsszegHuf
-      || quote.szallitasHuf !== osszeg.szallitasHuf || quote.fizetendoHuf !== osszeg.fizetendoHuf) {
+      || quote.szallitasHuf !== osszeg.szallitasHuf || quote.fizetendoHuf !== osszeg.fizetendoHuf! - quote.kedvezmenyHuf) {
       throw new RendelesHiba("Az ár vagy a kosár megváltozott. Kérj új ajánlatot.", "AR_VALTOZOTT");
+    }
+    const kuponFelhasznalas = quote.kuponKod
+      ? await tx.kuponFelhasznalas.findUnique({ where: { checkoutQuoteId: quote.id } })
+      : null;
+    if (quote.kuponKod && (!kuponFelhasznalas || kuponFelhasznalas.allapot !== "RESERVED" || kuponFelhasznalas.kedvezmenyHuf !== quote.kedvezmenyHuf)) {
+      throw new RendelesHiba("A kuponfoglalás lejárt. Kérj új ajánlatot.", "AR_VALTOZOTT");
     }
 
     const itemSnapshots = quote.kosar.tetelek.map(({ termek, mennyiseg }, index) => ({
@@ -134,12 +140,15 @@ export async function rogzitRendelesiIgenyt(session: string, input: RendelesiIge
       data: {
         publicId: publicOrderId(now),
         status: "PENDING_CONFIRMATION",
+        fiokId: vasarloiFiokId,
         paymentState: "UNPAID",
         currency: "HUF",
         productTotalHuf: quote.termekOsszegHuf,
         shippingFeeHuf: quote.szallitasHuf,
         shippingMethod: quote.szallitasiMod,
         totalHuf: quote.fizetendoHuf,
+        discountHuf: quote.kedvezmenyHuf,
+        couponCode: quote.kuponKod,
         customerName: input.vevo.nev,
         customerEmail: input.vevo.email,
         customerPhone: input.vevo.telefon,
@@ -153,9 +162,14 @@ export async function rogzitRendelesiIgenyt(session: string, input: RendelesiIge
         requestHash,
         idempotencyKey: input.idempotenciaKulcs,
         events: { create: { fromStatus: null, toStatus: "PENDING_CONFIRMATION", actor: "CUSTOMER", note: "Készlet-visszaigazolási igény érkezett." } },
+        notifications: { create: { type: "ORDER_RECEIVED", dedupeKey: "rendeles:" + hash(sessionHash + ":" + input.idempotenciaKulcs) + ":beerkezett" } },
       },
       select: { id: true, publicId: true, status: true, totalHuf: true },
     });
+    if (kuponFelhasznalas) {
+      const felhasznalt = await tx.kuponFelhasznalas.updateMany({ where: { id: kuponFelhasznalas.id, allapot: "RESERVED" }, data: { allapot: "USED", usedAt: now, orderId: order.id } });
+      if (felhasznalt.count !== 1) throw new RendelesHiba("A kupon felhasználása közben ütközés történt.", "AR_VALTOZOTT");
+    }
     return order;
   }, { maxWait: 5_000, timeout: 10_000 });
   } catch (hiba) {
@@ -175,7 +189,7 @@ export async function rogzitRendelesiIgenyt(session: string, input: RendelesiIge
 export async function lekerVendegRendelest(publicId: string, accessToken: string) {
   const order = await prisma.order.findFirst({
     where: { publicId, guestAccessHash: hash(accessToken) },
-    select: { publicId: true, status: true, paymentState: true, currency: true, productTotalHuf: true, shippingFeeHuf: true, shippingMethod: true, totalHuf: true, customerName: true, customerEmail: true, customerPhone: true, addressSnapshot: true, itemSnapshots: true, createdAt: true, stockConfirmationNote: true, stockConfirmedAt: true },
+    select: { publicId: true, status: true, paymentState: true, currency: true, productTotalHuf: true, shippingFeeHuf: true, discountHuf: true, couponCode: true, shippingMethod: true, totalHuf: true, customerName: true, customerEmail: true, customerPhone: true, addressSnapshot: true, itemSnapshots: true, createdAt: true, stockConfirmationNote: true, stockConfirmedAt: true },
   });
   if (!order) throw new RendelesHiba("A rendelés nem található.", "NEM_TALALHATO");
   const address = order.addressSnapshot as { szallitasiCim?: Cimtartalom };
@@ -186,6 +200,8 @@ export async function lekerVendegRendelest(publicId: string, accessToken: string
     currency: order.currency,
     termekOsszegHuf: order.productTotalHuf,
     szallitasHuf: order.shippingFeeHuf,
+    kedvezmenyHuf: order.discountHuf,
+    kuponKod: order.couponCode,
     szallitasiMod: order.shippingMethod,
     totalHuf: order.totalHuf,
     vevo: { nev: order.customerName, email: order.customerEmail, telefon: order.customerPhone },
@@ -200,12 +216,28 @@ export async function lekerVendegRendelest(publicId: string, accessToken: string
 
 export async function listazKezelendoRendeleseket() {
   const orders = await prisma.order.findMany({
-    where: { status: { in: ["PENDING_CONFIRMATION", "CONFIRMED"] } },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
     take: 100,
-    select: { id: true, publicId: true, status: true, customerName: true, customerEmail: true, customerPhone: true, addressSnapshot: true, itemSnapshots: true, productTotalHuf: true, shippingFeeHuf: true, shippingMethod: true, totalHuf: true, createdAt: true, shipment: true },
+    select: { id: true, publicId: true, status: true, paymentState: true, customerName: true, customerEmail: true, customerPhone: true, addressSnapshot: true, itemSnapshots: true, productTotalHuf: true, shippingFeeHuf: true, shippingMethod: true, totalHuf: true, createdAt: true, shipment: true, events: { orderBy: { createdAt: "asc" }, select: { fromStatus: true, toStatus: true, actor: true, note: true, createdAt: true } } },
   });
-  return orders.map((order) => ({ ...order, createdAt: order.createdAt.toISOString() }));
+  const audit = await prisma.adminAuditLog.findMany({
+    where: { targetType: "Order", targetId: { in: orders.map((order) => order.publicId) }, action: { in: ["shipment_processing", "shipment_shipped", "shipment_delivered", "shipment_cancelled"] } },
+    orderBy: { createdAt: "asc" }, take: 500,
+    select: { targetId: true, action: true, adminUserId: true, createdAt: true },
+  });
+  const shipmentEvents = new Map<string, typeof audit>();
+  for (const event of audit) {
+    const key = event.targetId ?? "";
+    shipmentEvents.set(key, [...(shipmentEvents.get(key) ?? []), event]);
+  }
+  return orders.map((order) => ({
+    ...order,
+    createdAt: order.createdAt.toISOString(),
+    events: [
+      ...order.events.map((event) => ({ fromStatus: event.fromStatus, toStatus: event.toStatus, actor: event.actor, note: event.note, createdAt: event.createdAt.toISOString() })),
+      ...(shipmentEvents.get(order.publicId) ?? []).map((event) => ({ fromStatus: "", toStatus: event.action, actor: event.adminUserId ? "ADMIN" : "SYSTEM", note: "", createdAt: event.createdAt.toISOString() })),
+    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+  }));
 }
 
 export async function megerositRendelesiKeszletet(publicId: string, muvelet: "megerosit" | "elutasit", megjegyzes: string, actor: "ORDER_OPERATIONS", adminUserId?: string) {
@@ -226,6 +258,12 @@ export async function megerositRendelesiKeszletet(publicId: string, muvelet: "me
     });
     if (updated.count !== 1) throw new RendelesHiba("A rendelés állapota időközben megváltozott.", "RENDELES_ALLAPOT_UTKOZES");
     await tx.orderEvent.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: kovetkezo, actor, note: megjegyzes } });
+    const dedupeKey = "rendeles:" + publicId + ":keszlet:" + kovetkezo.toLowerCase();
+    await tx.notification.upsert({
+      where: { dedupeKey },
+      create: { orderId: order.id, type: muvelet === "megerosit" ? "STOCK_CONFIRMED" : "STOCK_REJECTED", dedupeKey },
+      update: {},
+    });
     if (adminUserId) await tx.adminAuditLog.create({ data: { adminUserId, action: `stock_${muvelet}`, targetType: "Order", targetId: publicId, details: { megjegyzes } } });
     return { id: order.id, publicId, status: kovetkezo };
   }, { maxWait: 5_000, timeout: 10_000 });

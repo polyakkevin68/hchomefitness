@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { prisma } from "../src/lib/adatbazis-kapcsolat";
 import { hashAdminJelszot } from "../src/auth/admin-hitelesites";
 

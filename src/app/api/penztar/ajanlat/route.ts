@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { KOSAR_SUTI, KosarVerzioHiba } from "@/kosar/szerveres-kosar";
 import { KosarHiba } from "@/penztar/osszegzes";
-import { keszitAjanlatot } from "@/penztar/szerveres-ajanlat";
+import { KuponHiba, keszitAjanlatot } from "@/penztar/szerveres-ajanlat";
 
 export const dynamic = "force-dynamic";
-const bemenet = z.object({ verzio: z.number().int().nonnegative() }).strict();
+const bemenet = z.object({ verzio: z.number().int().nonnegative(), kuponKod: z.string().trim().max(40).optional() }).strict();
 
 function privateJson(data: unknown, status = 200) {
   const response = NextResponse.json(data, { status });
@@ -21,6 +21,7 @@ function sameOrigin(request: NextRequest) {
 
 function hibaValasz(error: unknown) {
   if (error instanceof KosarVerzioHiba) return privateJson({ hiba: error.message, kod: "VERZIO_UTKOZES" }, 409);
+  if (error instanceof KuponHiba) return privateJson({ hiba: error.message, kod: "KUPON_NEM_ERVENYES" }, 400);
   if (error instanceof KosarHiba) return privateJson({ hiba: error.message, kod: error.kod }, error.kod === "FORRAS_ADAT_ELAVULT" ? 503 : error.kod === "NEM_VASAROLHATO" ? 409 : 400);
   return privateJson({ hiba: "Az ajánlat nem készíthető el." }, 500);
 }
@@ -32,6 +33,6 @@ export async function POST(request: NextRequest) {
   try {
     const parsed = bemenet.safeParse(await request.json());
     if (!parsed.success) return privateJson({ hiba: "Az ajánlatkérés adatai hibásak." }, 400);
-    return privateJson(await keszitAjanlatot(session, parsed.data.verzio));
+    return privateJson(await keszitAjanlatot(session, parsed.data.verzio, parsed.data.kuponKod));
   } catch (error) { return hibaValasz(error); }
 }

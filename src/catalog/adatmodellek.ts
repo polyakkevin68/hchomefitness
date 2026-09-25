@@ -7,10 +7,13 @@ export type CatalogProduct = {
   brand: string;
   category: string;
   priceHuf: number;
+  netPriceHuf?: number;
   description: string;
+  longDescription?: string;
   imageUrls: string[];
   attributes: ProductAttribute[];
   isPurchasable: boolean;
+  isPublished?: boolean;
   source: "fixture" | "unas";
   isTestFixture: boolean;
   keszlet?: import("./keszlet-allapot").KeszletInformacio;

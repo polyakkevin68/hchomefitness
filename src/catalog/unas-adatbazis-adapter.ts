@@ -5,6 +5,7 @@ import { readAppConfig } from "@/lib/kornyezet-schema";
 import { keszletInformacio } from "./keszlet-allapot";
 import { normalizalKatalogusOldalt, KATALOGUS_OLDALMERET } from "./katalogus-lapozas";
 import type { KatalogusKereso } from "./adatmodellek";
+import { forrasKategoriak, forrasKategoriakMegjelenitesiNevhez, katalogusKategoria, rendezettKatalogusKategoriak } from "./katalogus-kategoriak";
 
 function readAttributes(value: Prisma.JsonValue): ProductAttribute[] {
   if (!Array.isArray(value)) return [];
@@ -30,24 +31,35 @@ export function createUnasDatabaseAdapter(prisma: PrismaClient, includeUnpublish
     isActive: true,
     ...(includeUnpublished ? {} : { isPublished: true }),
     isTestFixture: false,
+    category: { in: forrasKategoriak },
   };
-  const atalakitTermeket = (product: Prisma.ProductGetPayload<{ include: { keszlet: true } }>) => ({
-    id: product.id,
-    sourceId: product.sourceId,
-    sku: product.sku,
-    slug: product.slug,
-    name: product.name,
-    brand: product.brand,
-    category: product.category,
-    priceHuf: product.priceHuf,
-    description: product.description,
-    imageUrls: product.imageUrls,
-    attributes: readAttributes(product.attributes),
-    isPurchasable: product.isPurchasable,
-    source: product.source === "unas" ? "unas" as const : "fixture" as const,
-    isTestFixture: product.isTestFixture,
-    keszlet: keszletInformacio(product.keszlet, readAppConfig().STOCK_MAX_AGE_SECONDS),
-  });
+  const atalakitTermeket = (product: Prisma.ProductGetPayload<{ include: { keszlet: true } }>) => {
+    const category = katalogusKategoria(product.category);
+    if (!category) return null;
+    return {
+      id: product.id,
+      sourceId: product.sourceId,
+      sku: product.sku,
+      slug: product.slug,
+      name: product.name,
+      brand: product.brand,
+      category,
+      priceHuf: product.priceHuf,
+      netPriceHuf: product.netPriceHuf === null ? undefined : Number(product.netPriceHuf),
+      description: product.description,
+      longDescription: product.longDescription,
+      imageUrls: product.imageUrls,
+      attributes: readAttributes(product.attributes),
+      isPurchasable: product.isPurchasable,
+      isPublished: product.isPublished,
+      source: product.source === "unas" ? "unas" as const : "fixture" as const,
+      isTestFixture: product.isTestFixture,
+      keszlet: keszletInformacio(product.keszlet, readAppConfig().STOCK_MAX_AGE_SECONDS),
+    };
+  };
+  const atalakitTermekeket = (products: Prisma.ProductGetPayload<{ include: { keszlet: true } }>[]) => products
+    .map(atalakitTermeket)
+    .filter((product): product is NonNullable<typeof product> => product !== null);
 
   const getKatalogusMetaadat = () => {
     if (katalogusMetaadat && katalogusMetaadat.ervenyesEddig > Date.now()) return katalogusMetaadat.adat;
@@ -56,7 +68,7 @@ export function createUnasDatabaseAdapter(prisma: PrismaClient, includeUnpublish
       prisma.product.findMany({ where: alapszuro, select: { category: true }, distinct: ["category"], orderBy: { category: "asc" } }),
       prisma.product.count({ where: alapszuro }),
     ]).then(([kategoriakSorai, osszesTermekSzama]) => ({
-      kategoriak: kategoriakSorai.map((row) => row.category),
+      kategoriak: rendezettKatalogusKategoriak(kategoriakSorai.map((row) => row.category)),
       osszesTermekSzama,
     }));
     katalogusMetaadat = { ervenyesEddig: Date.now() + 30_000, adat };
@@ -73,7 +85,7 @@ export function createUnasDatabaseAdapter(prisma: PrismaClient, includeUnpublish
         include: { keszlet: true },
         orderBy: [{ category: "asc" }, { name: "asc" }],
       });
-      return products.map(atalakitTermeket);
+      return atalakitTermekeket(products);
     },
     async getProductBySlug(slug) {
       const product = await prisma.product.findFirst({
@@ -92,12 +104,13 @@ export function createUnasDatabaseAdapter(prisma: PrismaClient, includeUnpublish
       const adat = (async () => {
       const where: Prisma.ProductWhereInput = {
         ...alapszuro,
-        ...(kategoria ? { category: kategoria } : {}),
+        ...(kategoria ? { category: { in: forrasKategoriakMegjelenitesiNevhez(kategoria) } } : {}),
         ...(term ? {
           OR: [
             { sku: { contains: term, mode: "insensitive" } },
             { name: { contains: term, mode: "insensitive" } },
             { category: { contains: term, mode: "insensitive" } },
+            { category: { in: forrasKategoriakMegjelenitesiNevhez(term) } },
             { description: { contains: term, mode: "insensitive" } },
           ],
         } : {}),
@@ -121,7 +134,7 @@ export function createUnasDatabaseAdapter(prisma: PrismaClient, includeUnpublish
         take: oldalmeret,
       });
       return {
-        termekek: products.map(atalakitTermeket),
+        termekek: atalakitTermekeket(products),
         szurtTermekekSzama,
         osszesTermekSzama: metaadat.osszesTermekSzama,
         kategoriak: metaadat.kategoriak,

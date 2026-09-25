@@ -1,6 +1,8 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/adatbazis-kapcsolat";
+import { readAppConfig } from "@/lib/kornyezet-beallitas";
+import { keszletInformacio } from "@/catalog/keszlet-allapot";
 import { KosarHiba, osszesitKosarat, type KosarTetel } from "@/penztar/osszegzes";
 
 const LEJARAT_NAP = 30;
@@ -32,9 +34,11 @@ export async function betoltVagyLetrehozKosarat(session?: string) {
   return { session: ujSession, kosarId: created.id, verzio: created.version };
 }
 
-function kaphato(termek: { brand: string; source: string; isActive: boolean; isPublished: boolean; isPurchasable: boolean; isTestFixture: boolean }) {
+function kaphato(termek: { brand: string; source: string; isActive: boolean; isPublished: boolean; isPurchasable: boolean; isTestFixture: boolean; keszlet: { quantity: number | null; fetchedAt: Date } | null }) {
+  const keszlet = keszletInformacio(termek.keszlet, readAppConfig().STOCK_MAX_AGE_SECONDS);
   return termek.brand === "HC Home Fitness" && termek.source === "unas" && termek.isActive
-    && termek.isPublished && termek.isPurchasable && !termek.isTestFixture;
+    && termek.isPublished && termek.isPurchasable && !termek.isTestFixture
+    && keszlet.allapot === "friss" && keszlet.mennyiseg > 0;
 }
 
 async function leptetVerziot(tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0], kosarId: string, verzio: number) {
@@ -48,7 +52,7 @@ async function leptetVerziot(tx: Parameters<Parameters<typeof prisma.$transactio
 export async function lekerKosarOsszegzes(session: string) {
   const kosar = await prisma.kosar.findUnique({
     where: { sessionHash: hashSession(session) },
-    include: { tetelek: { include: { termek: true }, orderBy: { createdAt: "asc" } } },
+    include: { tetelek: { include: { termek: { include: { keszlet: true } } }, orderBy: { createdAt: "asc" } } },
   });
   if (!kosar || kosar.expiresAt <= new Date()) throw new KosarHiba("A kosár lejárt.", "HIBAS_TETEL");
 
@@ -98,7 +102,7 @@ export async function hozzaadKosarhoz(session: string, termekId: string, elvartV
     if (kosar.version !== elvartVerzio) throw new KosarVerzioHiba();
     await leptetVerziot(tx, kosar.id, elvartVerzio);
 
-    const termek = await tx.product.findUnique({ where: { id: termekId } });
+    const termek = await tx.product.findUnique({ where: { id: termekId }, include: { keszlet: true } });
     if (!termek || !kaphato(termek)) throw new KosarHiba("A termék nincs közzétéve vagy nem vásárolható.", "NEM_VASAROLHATO");
     const meglevo = await tx.kosarTetel.findUnique({ where: { kosarId_termekId: { kosarId: kosar.id, termekId } } });
     const mennyiseg = (meglevo?.mennyiseg ?? 0) + 1;
@@ -124,7 +128,7 @@ export async function modositKosarTetelt(session: string, tetel: KosarTetel, elv
     if (kosar.version !== elvartVerzio) throw new KosarVerzioHiba();
     await leptetVerziot(tx, kosar.id, elvartVerzio);
 
-    const termek = await tx.product.findUnique({ where: { id: tetel.termekId } });
+    const termek = await tx.product.findUnique({ where: { id: tetel.termekId }, include: { keszlet: true } });
     if (!termek || !kaphato(termek)) throw new KosarHiba("A termék nincs közzétéve vagy nem vásárolható.", "NEM_VASAROLHATO");
     osszesitKosarat([tetel], [{
       id: termek.id, sku: termek.sku, nev: termek.name, marka: termek.brand, forras: termek.source,

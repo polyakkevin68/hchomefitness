@@ -1,6 +1,69 @@
 # Ellenőrzési jegyzőkönyv
 
-Dátum: 2026-09-25. Mérföldkő: M0–M5 kész; M6 nyitva; M7 részben megvalósítva; M8 folyamatban. Környezet: Windows, Node.js 24.15.0, npm 11.14.0, helyi PostgreSQL 17.
+Dátum: 2026-09-25. Mérföldkő: M9 helyi P1-implementáció kész; M6/M7 külső próbára, M8 külső kapukra és M9 néhány feltételes szolgáltatói próbára vár. Környezet: Windows, Node.js 24.15.0, npm 11.14.0, helyi PostgreSQL 17.
+
+## M9 termék-összehasonlítás (CMP01)
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| Összehasonlítás-szabályok | Sikeres | 2–4 slug, egyediség, létezés, HC márka, UNAS-forrás, nem próbaadat és azonos kategória ellenőrzött. |
+| Célzott teszt | Sikeres | 4 teszt a jóváhagyott termékekre és hibás/hiányzó, duplikált, idegen márkájú, próba- vagy eltérő kategóriájú bemenetre. |
+| Teljes tesztcsomag | Sikeres | 41 fájl, 175 teszt; a PostgreSQL-integrációs tesztekkel együtt. |
+| `npm.cmd run lint` és `npm.cmd run typecheck` | Sikeres | A teljes forráskód ellenőrzése hibamentes. |
+| `npm.cmd run build` | Sikeres | Next.js 16.3.6 production build; a dinamikus `/osszehasonlitas` útvonal is lefordult. |
+| Böngészős ellenőrzés | Tulajdonos végzi | Mobil böngészőpróbát nem futtattam; a táblázat működését a tulajdonos ellenőrzi kézzel. |
+
+## M9 összesített ellenőrzés
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| Teljes tesztcsomag | Sikeres | `npm.cmd test -- --configLoader runner`: 55 fájl, 219 teszt. Lefedi a fiók és rendelés-összekötés, kupon/ajánló PostgreSQL tranzakciók, feed/termékoldal ár-egyezés PostgreSQL-en, UNAS nettó/bruttó parser, hírlevél PostgreSQL, értékelési jogosultság és tartalomkezelési útvonalak releváns eseteit. |
+| Lint és típusellenőrzés | Sikeres | `npm.cmd run lint`, `npm.cmd run typecheck`. |
+| Prisma | Sikeres | `npm.cmd exec prisma validate`, `npm.cmd exec prisma migrate status`; 21 migráció, adatbázis naprakész. |
+| Production build | Sikeres | `npm.cmd run build`; mindkét feed és az új tartalmi, értékelési, hírlevél-, kupon- és fiókútvonalak lefordultak. |
+| Termékoldal és friss Prisma-kliens | Sikeres | A sémából újragenerálás és a korábban futó fejlesztői szerver újraindítása után az érintett termékoldal HTTP 200-at adott; `findMany` futási hiba nem jelentkezett. |
+| UNAS nettó ár friss lekérése | Sikeres, csak olvasó | Az első próbát `fetch failed` állította meg. Újrapróbálva: 50 forrásrekord, 8 HC-termék, mind a 8-hoz nettó ár; teljes import: 9 oldal, 60 elfogadott, 368 kizárt, 0 hibás. UNAS-adat nem módosult. |
+| Helyi UNAS-import | Sikeres | Worker naplója: 60 rekord frissült, 0 új, 0 hibás. Az adatbázisban 60 importált HC-termékhez van nettó ár. Publikált termék még nincs, ezért a feedek 503-at adnak. |
+| Feed–termékoldal ár és készlet | Sikeres | Valódi helyi PostgreSQL-próba ugyanazon rekord bruttó/nettó HUF-árát és friss készletét hasonlítja mindkét feed értékeihez; publikálatlan terméket nem tesz ki. |
+| Google/Árukereső feed külső befogadása | Nem futott | Nincs ellenőrzött partnerfiók/regisztráció vagy feltöltés. A katalógusban nincs publikált termék. |
+| MailerSend hírlevél | Helyben szimulált | PostgreSQL teszt igazolta a hozzájárulás-verzió, megerősítés, leiratkozás és provider-állapot mentését; valódi provider alapból tiltva és külső levél nem küldődött. |
+| Áruhitel / UNAS-rendelésírás | Nem alkalmazható / tiltott | Nincs lender-szerződés (D12); forrásírás nincs jóváhagyva (D07), így adapter és külső módosítás nem készült. |
+| Mobil böngészőpróba | Tulajdonos végzi | Kérésre nem futtattam; kézi ellenőrzés nyitott. |
+
+## Katalógus P0 folytatása
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| UNAS részletes leírás | Sikeres | Hivatalos UNAS `Description.Long` mezőből olvas; az első 50 rekordból 8 engedélyezett HC-termék mindegyikéhez érkezett hosszú leírás. A teljes, 9 oldalas csak olvasó import 60/60 valódi HC-terméket frissített; mind a 60-hoz ment részletes leírás a helyi adatbázisba. |
+| Termékoldali leírás | Sikeres | A friss Prisma-klienssel ellenőrzött termékoldal HTTP 200-at adott és megjelenítette a részletes leírást. A forrás HTML-kódja nem kerül végrehajtásra. |
+| Kategóriaoldalak | Sikeres | A kezdőlap kategóriagombjai `/kategoria/[slug]` útvonalra mutatnak; a `/kategoria/futopadok` helyi HTTP-próbája 200-at adott termékkártyákkal. |
+| Kategória-engedélylista | Sikeres | A helyi katalógus 60 terméket és pontosan a kért kilenc kategóriát adott vissza; az UNAS alcsoportnevek egységesítve, az idegen kategóriák kizárva. |
+| Kosárba helyezés | Sikeres helyi próbához | Fejlesztői `unas-preview` módban csak közzétett, forrás szerint rendelhető, friss és pozitív készletű valódi termék tehető a kosárba. A PostgreSQL-integráció friss készlettel engedi, három órás készletadattal elutasítja a műveletet. A mostani UNAS-frissítés mind a 60 terméket naprakész, ismert készlettel hozta vissza; mind a 60 megfelel a kosárfeltételnek. Rendelésleadás továbbra sincs bekapcsolva. |
+| Teljes tesztcsomag | Sikeres | `npm.cmd test -- --configLoader runner`: 58 fájl, 228 teszt; kategóriaengedélylista, friss készletű kosárba tétel és elavult készlet elutasítása is ellenőrizve. |
+| Típusellenőrzés és lint | Sikeres | `npm.cmd run typecheck` és `npm.cmd run lint`. A production buildet ebben a módosításban nem futtattam. |
+| Adatbázis | Sikeres | 22 Prisma-migráció naprakész, benne a részletes termékleírás mezővel. |
+
+## Termékjóváhagyás
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| OWNER jogosultság | Sikeres | Az új `publish_products` műveletet csak OWNER szerep kapja; CONTENT, OPERATIONS és READ_ONLY nem. |
+| Terméklista | Sikeres | Csak aktív, nem tesztadat, HC márkájú UNAS-termékeket listáz; készletfrissességet külön jelöl. |
+| Közzététel/elrejtés | Sikeres | Eredetellenőrzött API tranzakcióban állapotot ment és auditbejegyzést ír; hibás vagy nem megfelelő terméket elutasít. |
+| Ellenőrzések | Sikeres | Típusellenőrzés, lint, 58 fájl/228 teszt; az OWNER-lista csak engedélyezett kategóriájú termékeket ad. |
+| Valódi termékpublikálás | Tulajdonos jelzése alapján megtörtént | A tulajdonos jelezte, hogy közzétette a termékeket; az adatbázis teljes listáját ebben az ellenőrzésben nem olvastam ki. |
+
+## M6 SimplePay adapter folytatása
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| SimplePay hivatalos API-szerződés | Ellenőrizve | A SimplePay által közzétett OpenAPI 2.1 JSON/POST üzenetet, Base64 HMAC-SHA384 aláírást és `Signature` fejlécet ír le; sandbox- és production alapcím külön van. |
+| Adapterhívások | Sikeres helyettesített válaszokkal | Start, státusz és refund kéréseknél az aláírás ellenőrzött. Indításnál kereskedő, rendelési hivatkozás, teljes HUF összeg, valuta és pontos SimplePay domain egyezik; hibás aláírás elutasított. |
+| `node --import dotenv/config ./node_modules/vitest/vitest.mjs run --configLoader runner src/fizetes/simplepay-kapcsolat.teszt.ts` | Sikeres | 7 célzott adapterteszt; indítás, státusz, visszatérítés, hálózati hiba, összegeltérés és idegen átirányítás. Külső SimplePay-kérés nem történt. |
+| `node --import dotenv/config ./node_modules/vitest/vitest.mjs run --configLoader runner` | Sikeres | 34 tesztfájl, 139 teszt; helyi PostgreSQL-integrációkkal együtt. A Vitest nem tölti be magától a `.env` fájlt, ezért a Node `dotenv/config` betöltést használja a parancs. |
+| `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run build` | Sikeres | ESLint, TypeScript és Next.js production build hiba nélkül; fizetési adapter kódja lefordul. |
+| SimplePay sandbox / éles fizetés | Nem futott | Kereskedői szerződés, sandbox belépés, kereskedőazonosító és titkos kulcs nincs beállítva. A provider `disabled` marad, valódi pénzmozgás nem indult. |
+| PaymentAttempt-integráció és callback | Még nincs kész | Az adapter egyelőre önálló; rendelési API-val, tartós kísérlettel, callback/IPN-nel, hiteles állapotátmenettel és refund adminnal össze kell kötni. |
 
 ## M7 adminisztráció és teljesítés
 
@@ -8,13 +71,29 @@ Dátum: 2026-09-25. Mérföldkő: M0–M5 kész; M6 nyitva; M7 részben megvaló
 |---|---|---|
 | Admin-jelszó és munkamenet | Sikeres | Scrypt jelszólenyomat, véletlen sütitoken, adatbázisban csak SHA-256 tokenlenyomat; belépés, lejárat, visszavonás és szerepkör-ellenőrzés valódi helyi PostgreSQL-en tesztelve. |
 | Szerepkörök és rendeléskezelés | Sikeres | Jogosulatlan szerepkör készletigazolását az integrációs teszt elutasította. OWNER fiók API és kezdeti OWNER létrehozó parancs elkészült. |
+| OWNER kezelőifiók-felület | Sikeres helyettesített API-próbával | Lista, jelszavas fióklétrehozás, letiltás és újraaktiválás. Letiltás visszavonja a munkameneteket; önletiltás és utolsó aktív OWNER tiltása elutasított. 6 célzott útvonalteszt. |
 | Helyi teljesítés és audit | Sikeres | PostgreSQL-integrációs próba az előkészítés → feladás → kézbesítés állapotokat, átmenettiltást, auditot és egyszeri feladási értesítési sort ellenőrzi. |
-| Prisma migráció | Sikeres | `20260925120000_m7_admin_teljesites_ertesites` alkalmazva; összesen 13 migráció, Prisma státusz szerint naprakész. |
-| Külső számlázás / e-mail | Nem tesztelt | A Számlázz.hu és a MailerSend kiválasztva; hozzáférések, adapterek és számlázási szabály még hiányzik. Tényleges számla, e-mail és privát dokumentumtár nem készült. |
-| Teljes tesztcsomag | Sikeres | Az M7 ellenőrzésekor 26 fájl/103 teszt; az M8 jelenlegi futása 32 fájl/124 teszt. |
-| `npm.cmd run typecheck` és `npm.cmd run lint` | Sikeres | TypeScript és ESLint hibamentes. |
-| `npm.cmd run build` | Sikeres | Next.js production build, kezelői útvonalakkal együtt. |
-| Prisma séma és migrációs állapot | Sikeres | Séma érvényes, mind a 13 migráció alkalmazva. |
+| Prisma migráció | Sikeres | `20260925130000_m7_szamla_vedett_tar` alkalmazva; összesen 14 migráció, Prisma státusz szerint naprakész. |
+| Számlázz.hu és MailerSend | Helyettesített teszt sikeres; külső próba nyitott | A helyi adapter, outbox, sablon, hibakezelés és privát PDF-tár elkészült. Valós számla vagy levél nem ment ki. |
+| Teljes tesztcsomag | Sikeres | A korábbi futás 39 fájl/164 teszt volt; legfrissebb M7 futás 40 fájl/171 teszt, helyi PostgreSQL-integrációval. |
+| `npm.cmd run typecheck` és `npm.cmd run lint` | Sikeres | A záró módosítások után TypeScript és ESLint hibamentes. |
+| `npm.cmd run build` | Sikeres | Next.js production build a teljes M7 útvonalkészlettel. |
+| Prisma séma és migrációs állapot | Sikeres | Séma érvényes, mind a 14 migráció alkalmazva. |
+
+## M7 értesítési feldolgozás és számlatár
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| MailerSend adapter és sablonok | Sikeres, helyettesített válaszokkal | Engedélyezőlista, élő mód környezeti korlátja, 202/azonosító és bizonytalan hálózati eredmény tesztelve; magyar rendelési sablon és HTML-kódolás ellenőrizve. |
+| Aláírt MailerSend webhook | Sikeres | Nyers törzs HMAC-SHA256 aláírása és kézbesített állapot; hibás aláírásnál nincs adatbázis-lekérdezés. A tényleges külső webhook-fogadás nem futott. |
+| Értesítési adatbázis-outbox és admin | Sikeres kódellenőrzéssel | Percenkénti worker, duplikációkulcs, `UNKNOWN` automatikus újraküldés tiltása, `FAILED` szerepkörvédett újrapróbálása és audit. |
+| Számlázz.hu Agent adapter | Sikeres, helyettesített válaszokkal | XML-kódolás, HUF végösszeg, levélküldés kikapcsolása, PDF/számlaszám és bizonytalan hálózati/hiányos válasz tesztelve; valós Agent-hívás nem történt. |
+| Védett számlatár | Sikeres | FINANCE/OWNER letöltés, egy rendeléshez egy számla, feltöltésméret/PDF-fejléc, SHA-256 és audit; vásárlói HMAC-link hét napos lejárata tesztelve. |
+| 14. adatbázis-migráció | Sikeres | `20260925130000_m7_szamla_vedett_tar` alkalmazva; Prisma státusz szerint minden migráció naprakész. |
+| Teljes tesztcsomag | Sikeres | 40 tesztfájl, 171 teszt; helyi PostgreSQL-integrációval együtt. Az első futás új outboxrekordokra nem takarító tesztet, a következő globális lejárttakarítási darabszámtól függő tesztet talált; mindkettőt stabilizálva a végső teljes futás sikeres lett. A SimplePay visszatérítés e-mail sorba állítását/összegét és a szolgáltatói elfogadás utáni adatbázishiba `UNKNOWN` kezelését is tesztek fedik. |
+| Lint, TypeScript és Prisma-séma | Sikeres | `npm.cmd run lint`, `npx.cmd tsc --noEmit --incremental false`, `npm.cmd exec prisma validate`. |
+| Production build és kezelői smoke próba | Sikeres | A production build elkészült. A rendelés-, értesítés- és számlakezelő oldalak HTTP 200-at, bejelentkezés nélkül az értesítési és számla API HTTP 401-et adott; a helyi szerver 3100-as portról leállítva. |
+| Számlázási és MailerSend külső próba | Nyitott | Nincs számlázó és e-mail tesztfiók/kulcs, jóváhagyott eladói/ÁFA-adat, kiállítási és számlaküldési szabály, domain vagy webhook-regisztráció; sem számla, sem e-mail nem ment ki. |
 
 ## M8 élesítés előtti helyi ellenőrzések
 
@@ -27,14 +106,15 @@ Dátum: 2026-09-25. Mérföldkő: M0–M5 kész; M6 nyitva; M7 részben megvaló
 | Adatbázis-egészségellenőrzés | Sikeres | A `/api/health` `SELECT 1` lekérdezést futtat; az egészséges adatbázis 200, a kapcsolat hibája 503. Mindkét eset útvonalszinten tesztelt. |
 | Naplómezők és hibaüzenetek titokvédelme | Sikeres | Engedélyezett mezőlista és adatbázis-URL/Bearer/API-kulcs/token/titok/jelszó kitakarása; két új egységteszt. |
 | Titok a buildben | Sikeres | `.env` verziókezelésből kizárva; két helyi érzékeny beállítás értéke nem található a 16 publikus vagy 221 szerveroldali JS/JSON buildállományban. |
-| Mentés és visszaállítás | Sikeres helyi próbán | `pg_dump` → külön PostgreSQL adatbázisba `pg_restore`; 19 tábla és 13 alkalmazott migráció egyezett. Próbaadatbázis és dump eltávolítva. |
+| Mentés és visszaállítás | Sikeres, jelenlegi sémán | `pg_dump`/`pg_restore` külön ideiglenes PostgreSQL-adatbázisba. Az eredeti és a visszaállított adatbázisban 19 tábla és 14 alkalmazott migráció egyezett; az ideiglenes adatbázis és dump eltávolítása lefutott. |
 | Katalógus API-terhelés | Sikeres, helyi | 1000 teszttermék, 50 párhuzamos HTTP-kliens, 10 perc: 3000 sikeres, 0 hibás kérés, 0% hiba, p50 154 ms, p95 213 ms, p99 273 ms, 8,7 MB átvitel. A szerver, a generátor és a PostgreSQL ugyanazon Windows gépen futott; staginget nem helyettesíti. |
 | Főoldal szerveroldali válaszideje | Nem teljesíti az API-célértéket; külön mérés | Egy 30 másodperces, 50 klienses diagnosztikai futás p95 1022 ms lett. A specifikáció célja a katalógus API-ra vonatkozik; a HTML-próba külön eredmény. |
 | Katalógus-lapozás és API | Sikeres | Adatbázisoldali lapozás, 12 rekord/oldal, rövid metaadat-gyorsítótár és 5 másodperces azonos kérésközösítés. A publikus JSON csak kártyaadatokat tartalmaz; válasz `private, no-store`. A termékadatlap adatbázisban slug alapján egy rekordot kérdez le. |
-| SEO és billentyűzetes alapok | Részben kész | Meta leírás, fókuszjelölés és csökkentett mozgás támogatása elkészült; kanonikus domain, sitemap, robots és kézi böngészős próba nyitott. |
+| SEO és billentyűzetes alapok | Részben kész | Meta leírás, fókuszjelölés és csökkentett mozgás támogatása elkészült; domain, sitemap és robots beállítás, valamint billentyűzetes böngészőpróba nyitott. A mobil böngészőpróbát a tulajdonos végzi el. |
 | Worker leállás | Sikeres valódi Linuxos jelpróba | GitHub Actions 36127543344 PostgreSQL mellett elindította a workert, SIGTERM-et küldött, legfeljebb 15 másodpercig várt, és csak a `worker.stopped` naplóbejegyzés után engedte át a lépést. A Windowsos konzolmegszakítás ettől függetlenül nem volt megfigyelhető. |
 | CI adatbázis-környezet | Sikeres távoli futás | GitHub Actions 36127543344: PostgreSQL 17, migráció, lint, típusellenőrzés, 124 teszt, workerjel-próba és production build mind sikeres. Az első futás rendelési próbája a helyi jogidokumentum-verziók hiánya miatt bukott; a workflow ezeket csak a tesztlépésnek adja át. |
-| Teljes helyi csomag | Sikeres | 32 tesztfájl, 124 teszt, lint, típusellenőrzés, Prisma séma/migráció és production build. |
+| Friss teljes helyi csomag | Sikeres | 40 tesztfájl, 171 teszt, lint, típusellenőrzés, Prisma séma/14 migráció és production build. A `test` npm-parancs most `dotenv/config` betöltéssel fut, ezért helyben is elérhető a `.env` adatbázis-kapcsolata. |
+| Friss éles konfiguráció és production smoke | Sikeres, helyi | `CATALOG_ADAPTER=unas` folyamatbeállítással a konfiguráció érvényes. A production szerveren `/`, `/api/health` és `/api/katalogus` HTTP 200; az API-válaszokon `private, no-store`, a production válaszokon HSTS és `nosniff` fejléc szerepelt. A helyi preview adapterrel a konfiguráció helyesen elutasított. |
 | Staging, szolgáltatói sandbox | Nem ellenőrzött | Staging hozzáférés és SimplePay/Számlázz.hu/MailerSend hitelesítés nincs; külső művelet nem történt. |
 
 | Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
@@ -201,3 +281,19 @@ Dátum: 2026-09-25. Az új rendelési útvonalak tesztjei a működés előtt k�
 | `npm.cmd run build` | Sikeres | Next.js production build; vásárlói rendelésnézet és kezelői rendelési oldal bekerült. |
 | Prisma migráció | Sikeres | `20260925090000_rendelesi_igeny` és `20260925103000_rendelesi_jogi_verziok` alkalmazva; összesen 10 migráció. |
 | Fizetés / valódi készletfoglalás | Nincs bekapcsolva | A közös UNAS-készletet nem foglaljuk; a kezelői döntés kézi igazolás. Fizetési szolgáltató híján megerősítés után sem indul terhelés; fizetési meghívó az M6 feladata. |
+
+## M6 SimplePay fizetés, IPN és visszatérítés
+
+Dátum: 2026-09-25. A SimplePay sandbox-hitelesítők és kereskedői fiók hiányában a szolgáltató válaszait helyettesített tesztek fedik le.
+
+| Ellenőrzés | Eredmény | Bizonyíték / korlátozás |
+|---|---|---|
+| Vendégrendelési fizetés API | Sikeres | 3 útvonalteszt; rendelési jogosultság, eredetvédelem és szerveren tárolt összeg. |
+| SimplePay adapter | Sikeres | 11 teszt; HMAC, start/status/query/refund, tranzakcióazonosító, HUF és összegellenőrzés, hálózati hibák. |
+| IPN útvonal | Sikeres | 3 teszt; aláírt válasz, fizetett állapot rögzítése, hibás aláírás és 16 KiB méretkorlát. |
+| Pénzügyi kezelői API | Sikeres | 4 útvonalteszt; hozzáférési szerepkör, összegkorlát, visszatérítés és eredetvédelem. |
+| Teljes tesztkészlet | Sikeres | 37 tesztfájl, 153 teszt, köztük helyi PostgreSQL-integrációk. A Vitest Windowsos konfigurációbetöltéséhez `--configLoader runner` kellett; a PostgreSQL-teszthez a `.env`-ből titok kiírása nélkül adtam át a `DATABASE_URL` értékét. |
+| Típusellenőrzés | Sikeres | `npx.cmd tsc --noEmit --incremental false`. |
+| Lint | Sikeres | `npm.cmd run lint`. |
+| Production build | Nem futott | A rendszermeghajtón nem volt szabad hely; a buildet nem indítottam el. |
+| SimplePay sandbox | Nem futott | Nincs kereskedői szerződés/fiók, sandbox-hozzáférés, domain és kulcs; külső kérés nem történt, a `PAYMENT_PROVIDER` alapértéke `disabled`. |

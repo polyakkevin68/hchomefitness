@@ -9,15 +9,18 @@ import { takaritLejartKosarakat } from "../kosar/lejart-kosar-takaritas";
 import { readAppConfig } from "../lib/kornyezet-schema";
 import { logEvent } from "@/lib/naplozas";
 import { szabalyosanLeallitWorker } from "./szabalyos-leallas";
+import { feldolgozTranzakciosErtesiteseket } from "@/ertesites/feldolgozo";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL szükséges a worker indításához.");
 const QUEUE = "unas-termek-import";
 const KOSAR_TAKARITO_QUEUE = "hc-lejart-kosarak-takaritasa";
 const UNAS_KESZLET_QUEUE = "hc-unas-keszlet-szinkron";
+const ERTESITES_QUEUE = "hc-tranzakcios-ertesitesek";
 type ImportJob = { task: "full-snapshot" };
 type CartCleanupJob = { task: "expired-carts" };
 type StockSyncJob = { task: "sync-stock" };
+type NotificationJob = { task: "send-notifications" };
 
 async function runWorker(): Promise<void> {
   const config = readAppConfig();
@@ -117,6 +120,23 @@ async function runWorker(): Promise<void> {
   } else {
     logEvent("warn", "worker.unas_stock_sync.disabled");
   }
+  await boss.createQueue(ERTESITES_QUEUE);
+  await boss.schedule(ERTESITES_QUEUE, "* * * * *", { task: "send-notifications" }, {
+    tz: "Europe/Budapest",
+    retryLimit: 3,
+    retryDelay: 60,
+  });
+  await boss.work<NotificationJob>(ERTESITES_QUEUE, { localConcurrency: 1 }, async (jobs) => {
+    for (const job of jobs) {
+      if (job.data.task !== "send-notifications") throw new Error("Ismeretlen értesítés-feladat.");
+      const result = await feldolgozTranzakciosErtesiteseket();
+      logEvent("info", "worker.notifications.processed", {
+        jobId: job.id,
+        processedCount: result.feldolgozott,
+        providerState: result.allapot,
+      });
+    }
+  });
   logEvent("info", "worker.started");
 
   let stopping = false;

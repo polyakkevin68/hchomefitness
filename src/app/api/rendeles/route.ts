@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readAppConfig } from "@/lib/kornyezet-schema";
 import { KOSAR_SUTI } from "@/kosar/szerveres-kosar";
 import { RendelesHiba, rogzitRendelesiIgenyt } from "@/rendeles/szerveres-rendeles";
+import { fiokSutiNeve, hitelesitFiokMunkamenetet, normalizalFiokEmailt } from "@/fiok/szerveres-fiok";
 
 export const dynamic = "force-dynamic";
 const cim = z.object({ orszag: z.literal("HU"), iranyitoszam: z.string().regex(/^\d{4}$/), telepules: z.string().trim().min(2).max(100), cim: z.string().trim().min(3).max(200) }).strict();
@@ -38,7 +39,9 @@ export async function POST(request: NextRequest) {
     if (!config.ORDER_REQUESTS_ENABLED) return valasz({ hiba: "A rendelési igények jelenleg ki vannak kapcsolva.", kod: "RENDELES_KIKAPCSOLVA" }, 503);
     const parsed = bemenet.safeParse(nyersAdat);
     if (!parsed.success) return valasz({ hiba: "A rendelési adatok hibásak." }, 400);
-    const result = await rogzitRendelesiIgenyt(session, parsed.data);
+    const fiok = await hitelesitFiokMunkamenetet(request.cookies.get(fiokSutiNeve)?.value);
+    const fiokId = fiok && normalizalFiokEmailt(fiok.email) === normalizalFiokEmailt(parsed.data.vevo.email) ? fiok.id : undefined;
+    const result = await rogzitRendelesiIgenyt(session, parsed.data, fiokId);
     const response = valasz({ rendeles: result.rendeles }, 201);
     response.cookies.set(`hc_rendeles_${result.rendeles.publicId}`, result.vendegToken, {
       httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict",

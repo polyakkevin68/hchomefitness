@@ -1,0 +1,2 @@
+ALTER TABLE "Product"
+ADD COLUMN "longDescription" TEXT NOT NULL DEFAULT '';

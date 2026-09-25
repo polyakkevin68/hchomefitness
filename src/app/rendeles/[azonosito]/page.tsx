@@ -2,6 +2,8 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { lekerVendegRendelest } from "@/rendeles/szerveres-rendeles";
+import { FizetesiVezerlo } from "@/app/rendeles/fizetesi-vezerlo";
+import { readAppConfig } from "@/lib/kornyezet-schema";
 import "@/app/rendeles.css";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,7 @@ export default async function RendelesOldal({ params }: { params: Promise<{ azon
   let adat;
   try { adat = await lekerVendegRendelest(azonosito, token); } catch { notFound(); }
   const szallitasiCim = adat.szallitasiCim;
+  const fizetesBekapcsolva = readAppConfig().PAYMENT_PROVIDER === "simplepay";
   const tetelek = Array.isArray(adat.tetelek) ? adat.tetelek as Array<{ nev?: string; cikkszam?: string; mennyiseg?: number; egysegarHuf?: number; sorOsszegHuf?: number }> : [];
-  return <main className="rendeles-oldal"><header><Link className="brand" href="/"><span className="brand-mark">HC</span><span>HOME FITNESS</span></Link><Link href="/">Vissza a főoldalra</Link></header><section className="rendeles-kartya"><p className="eyebrow">RENDELÉSI IGÉNY · {adat.publicId}</p><h1>Köszönjük a megkeresést</h1><p className="rendeles-allapot">{adat.keszletUzenet} A fizetés jelenleg nincs bekapcsolva.</p><div className="rendeles-adatok"><section><h2>Kapcsolattartó</h2><p>{adat.vevo.nev}<br />{adat.vevo.email}<br />{adat.vevo.telefon}</p></section><section><h2>Szállítási cím</h2><p>{szallitasiCim?.iranyitoszam} {szallitasiCim?.telepules}<br />{szallitasiCim?.cim}<br />Magyarország</p></section><section className="rendeles-tetelek"><h2>Rögzített ajánlat</h2><ul>{tetelek.map((tetel, index) => <li key={`${tetel.cikkszam}-${index}`}><span>{tetel.nev} · {tetel.mennyiseg} db</span><strong>{huf.format(tetel.sorOsszegHuf ?? 0)}</strong></li>)}</ul><p>Termékek: {huf.format(adat.termekOsszegHuf)}<br />Szállítás: {huf.format(adat.szallitasHuf)}<br /><strong>Összesen: {huf.format(adat.totalHuf)}</strong></p></section></div></section></main>;
+  return <main className="rendeles-oldal"><header><Link className="brand" href="/"><span className="brand-mark">HC</span><span>HOME FITNESS</span></Link><Link href="/">Vissza a főoldalra</Link></header><section className="rendeles-kartya"><p className="eyebrow">RENDELÉSI IGÉNY · {adat.publicId}</p><h1>Köszönjük a megkeresést</h1><p className="rendeles-allapot">{adat.keszletUzenet} {adat.status === "CONFIRMED" ? `Fizetési állapot: ${adat.paymentState}.` : ""}</p>{fizetesBekapcsolva && adat.status === "CONFIRMED" && adat.paymentState !== "PAID" && <FizetesiVezerlo azonosito={azonosito} />}<div className="rendeles-adatok"><section><h2>Kapcsolattartó</h2><p>{adat.vevo.nev}<br />{adat.vevo.email}<br />{adat.vevo.telefon}</p></section><section><h2>Szállítási cím</h2><p>{szallitasiCim?.iranyitoszam} {szallitasiCim?.telepules}<br />{szallitasiCim?.cim}<br />Magyarország</p></section><section className="rendeles-tetelek"><h2>Rögzített ajánlat</h2><ul>{tetelek.map((tetel, index) => <li key={`${tetel.cikkszam}-${index}`}><span>{tetel.nev} · {tetel.mennyiseg} db</span><strong>{huf.format(tetel.sorOsszegHuf ?? 0)}</strong></li>)}</ul><p>Termékek: {huf.format(adat.termekOsszegHuf)}<br />Szállítás: {huf.format(adat.szallitasHuf)}{adat.kedvezmenyHuf > 0 && <><br />Kuponkedvezmény ({adat.kuponKod}): −{huf.format(adat.kedvezmenyHuf)}</>}<br /><strong>Összesen: {huf.format(adat.totalHuf)}</strong></p></section></div></section></main>;
 }

@@ -11,4 +11,11 @@ describe("adminisztrátori szerepkörök", () => {
     expect(canPerformAdminAction("FINANCE", "manage_users")).toBe(false);
     expect(canPerformAdminAction("FINANCE", "manage_invoices")).toBe(true);
   });
+
+  it("csak tulajdonos hagyhat jóvá katalógusterméket", () => {
+    expect(canPerformAdminAction("OWNER", "publish_products")).toBe(true);
+    expect(canPerformAdminAction("CONTENT", "publish_products")).toBe(false);
+    expect(canPerformAdminAction("OPERATIONS", "publish_products")).toBe(false);
+    expect(canPerformAdminAction("READ_ONLY", "publish_products")).toBe(false);
+  });
 });

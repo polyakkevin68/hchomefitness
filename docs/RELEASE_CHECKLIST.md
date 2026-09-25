@@ -9,11 +9,11 @@ Minden pont nyitott, amíg az ellenőrzés és bizonyíték nincs dokumentálva.
 - Ellenőrizve: az egészségvégpont adatbázis-lekérdezése; adatbázishibánál 503-at ad, nem jelez hamis sikert.
 - Ellenőrizve: naplómező engedélylista és adatbázis-cím, Bearer token, kulcs/token/jelszó kitakarása.
 - Ellenőrizve: `.env` kizárása a verziókezelésből és titokértékek hiánya a production build kliens- és szerverállományaiból.
-- Ellenőrizve helyi próbán: PostgreSQL mentés és külön adatbázisba visszaállítás; 19 tábla és 13 migráció egyezett, a próbaadatok eltakarítva.
+- Ellenőrizve helyi próbán: PostgreSQL mentés és külön adatbázisba visszaállítás; 19 tábla és 14 alkalmazott migráció egyezett, az ideiglenes adatbázis és dump eltávolítása lefutott.
 - Ellenőrizve: production build külön helyi folyamatban nem szolgálta ki a fixture/előnézeti katalógust; 200, adatbázis-állapot, HSTS és API-gyorsítótár-fejléc rendben.
-- Kódban előkészítve: leíró meta szöveg, látható billentyűzetfókusz és csökkentett mozgás beállítás követése. Böngészős ellenőrzés még nyitott.
+- Kódban előkészítve: leíró meta szöveg, látható billentyűzetfókusz és csökkentett mozgás beállítás követése. Billentyűzetes böngészőpróba nyitott; a mobilpróbát a tulajdonos végzi el.
 - Nyitott: végleges domain híján kanonikus URL, sitemap és robots beállítás.
-- Ellenőrizve: 32 tesztfájl/124 teszt, lint, típusellenőrzés, Prisma-migráció és production build.
+- Ellenőrizve: 40 tesztfájl/171 teszt, lint, típusellenőrzés, Prisma-séma/14 migráció, production build, érvényes production konfiguráció és három production HTTP smoke kérés.
 - Ellenőrizve helyi mérésen: 1000 termék, 50 párhuzamos kliens, 10 perc, 3000 sikeres katalógus API-kérés, 0% hiba, p95 213 ms, p99 273 ms. A külön főoldal-SSR-próba p95 1022 ms volt; nem keverendő össze az API-céllal.
 - Ellenőrizve: GitHub Actions 36127543344 alatt PostgreSQL 17, migráció, lint, típusellenőrzés, 124 teszt, worker SIGTERM-leállás és production build sikeres.
 - Nem ellenőrzött: staging/TLS, külső sandboxok, mobil és billentyűzetes próba, jogi/kereskedői adatok és production riasztás. Az éles konfiguráció helyi kapcsolattal érvényes.
@@ -33,7 +33,7 @@ Minden pont nyitott, amíg az ellenőrzés és bizonyíték nincs dokumentálva.
 - [ ] Fizetési sandbox callback, timeout, duplikáció és visszatérítés egyeztetése sikeres.
 - [ ] Admin OIDC/MFA, szerepkör és objektumszintű hozzáférés ellenőrizve.
 - [ ] Számlázás és e-mail tesztadapterrel, duplikációvédelemmel ellenőrizve.
-- [x] Helyi PostgreSQL mentés-visszaállítása sikeres.
+- [x] Helyi PostgreSQL mentés-visszaállítása sikeres; 19 tábla/14 migráció egyezett.
 - [x] 1000 termék/50 kliens/10 perces katalógus API-terhelési próba: p95 213 ms, 0% hiba.
 - [x] Alkalmazásnapló érzékeny mezőinek szűrése és titokmaszkolása tesztelt.
 - [x] Worker valódi SIGTERM-jelre történő leállása GitHub Actions alatt ellenőrizve.

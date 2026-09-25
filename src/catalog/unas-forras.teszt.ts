@@ -4,6 +4,21 @@ import { parseUnasProducts, parseUnasStock, UnasProductAdapter } from "./unas-fo
 const termek = (enabled: string | undefined, id = "20001", baseStatus = "1") => `<Product><State>live</State><Id>${id}</Id><Sku>HC-${id}</Sku><Name><![CDATA[HC futópad]]></Name><Statuses><Status><Type>base</Type><Value>${baseStatus}</Value></Status></Statuses><Prices><Price><Type>normal</Type><Gross>299990</Gross><Actual>1</Actual></Price></Prices><Categories><Category><Type>base</Type><Name><![CDATA[Futópadok]]></Name></Category></Categories><Params><Param><Id>8773476</Id><Name>API engedélyezés</Name><Value>${enabled ?? ""}</Value></Param><Param><Id>6992254</Id><Name>Teherbírás</Name><Value>140</Value></Param><Param><Id>1683247</Id><Name>Készlet</Name><Value>Raktáron</Value></Param></Params><Images><Image><Type>base</Type><SefUrl>https://www.futopadoutlet.hu/images/et160i.jpg</SefUrl></Image><Image><Type>alt</Type><SefUrl>http://www.futopadoutlet.hu/images/insecure.jpg</SefUrl></Image></Images><Description><Short><![CDATA[Minta leírás]]></Short></Description></Product>`;
 
 describe("UNAS termékkapcsolat", () => {
+  it("átveszi a részletes leírást, és a HTML-t nem kezeli megjeleníthető kódként", () => {
+    const withLong = termek("1").replace("</Description>", "<Long><![CDATA[<p>Részletes leírás</p><ul><li>Erős váz</li></ul><script>alert(1)</script>]]></Long></Description>");
+    const parsed = parseUnasProducts(`<Products>${withLong}</Products>`, "8773476");
+    expect(parsed.products[0]?.description).toBe("Minta leírás");
+    expect(parsed.products[0]?.longDescription).toBe("Részletes leírás\n• Erős váz");
+    expect(parsed.products[0]?.longDescription).not.toContain("alert");
+  });
+
+  it("a feedhez a forrásból veszi át a bruttó és nettó árat", () => {
+    const xml = `<Products><Product><State>live</State><Id>70001</Id><Sku>HC-70001</Sku><Name>HC futópad</Name><Statuses><Status><Type>base</Type><Value>1</Value></Status></Statuses><Prices><Price><Type>normal</Type><Net>236212.60</Net><Gross>299990</Gross><Actual>1</Actual></Price></Prices><Categories><Category><Type>base</Type><Name>Futópadok</Name></Category></Categories><Params><Param><Id>8773476</Id><Value>1</Value></Param></Params></Product></Products>`;
+    const parsed = parseUnasProducts(xml, "8773476");
+    expect(parsed.products[0]?.priceHuf).toBe(299990);
+    expect(parsed.products[0]?.netPriceHuf).toBe(236212.6);
+  });
+
   it("a készletmennyiséget csak az UNAS válaszából veszi, és a hiányzó értéket ismeretlenül hagyja", () => {
     const result = parseUnasStock(`<Products>
       <Product><Id>20001</Id><Sku>HC-20001</Sku><Stocks><Stock><Qty>3</Qty></Stock><Stock><WarehouseId>9</WarehouseId><IsActive>no</IsActive><Qty>4</Qty></Stock></Stocks></Product>

@@ -58,6 +58,25 @@ function slugify(value: string, id: string): string {
   return `${base || "hc-termek"}-${id.toLocaleLowerCase("en-US")}`;
 }
 
+function readableDescription(value: unknown): string {
+  return (text(value) ?? "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|style|iframe|object|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+    .replace(/<li\b[^>]*>/gi, "• ")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/(?:p|div|li|h[1-6]|tr)\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function productImageUrl(value: unknown): string | undefined {
   const raw = text(value);
   if (!raw) return undefined;
@@ -158,6 +177,7 @@ function parseUnasDocument(document: XmlRecord, allowParameterId: string): Parse
       const priceRows = items((product.Prices as XmlRecord | undefined)?.Price);
       const actual = priceRows.find((price) => text(price.Actual) === "1") ?? priceRows.find((price) => text(price.Type) === "normal");
       const gross = Number(text(actual?.Gross));
+      const netCandidate = Number(text(actual?.Net));
       const categoryRows = items((product.Categories as XmlRecord | undefined)?.Category);
       const category = categoryRows.find((item) => text(item.Type) === "base");
       const categoryName = text(category?.Name);
@@ -167,7 +187,8 @@ function parseUnasDocument(document: XmlRecord, allowParameterId: string): Parse
       }
 
       const shortDescription = text((product.Description as XmlRecord | undefined)?.Short) ?? "";
-      const images = items((product.Images as XmlRecord | undefined)?.Image);
+      const longDescription = readableDescription((product.Description as XmlRecord | undefined)?.Long);
+            const images = items((product.Images as XmlRecord | undefined)?.Image);
       const imageUrls = images
         .filter((image) => ["base", "alt"].includes(text(image.Type) ?? ""))
         .map((image) => productImageUrl(image.SefUrl))
@@ -181,7 +202,9 @@ function parseUnasDocument(document: XmlRecord, allowParameterId: string): Parse
         brand: BRAND,
         category: categoryName,
         priceHuf: gross,
+        ...(Number.isFinite(netCandidate) && netCandidate >= 0 ? { netPriceHuf: netCandidate } : {}),
         description: shortDescription,
+        longDescription,
         imageUrls,
         attributes,
         isPurchasable: statusValue !== "3",

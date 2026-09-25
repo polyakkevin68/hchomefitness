@@ -4,7 +4,7 @@ import { KosarHiba } from "@/penztar/osszegzes";
 
 const tarolo = vi.hoisted(() => ({ keszitAjanlatot: vi.fn() }));
 
-vi.mock("@/penztar/szerveres-ajanlat", () => ({ ...tarolo }));
+vi.mock("@/penztar/szerveres-ajanlat", () => ({ ...tarolo, KuponHiba: class KuponHiba extends Error {} }));
 vi.mock("@/kosar/szerveres-kosar", () => ({
   KOSAR_SUTI: "hc_kosar",
   KosarVerzioHiba: class KosarVerzioHiba extends Error {},
@@ -53,8 +53,17 @@ describe("lejáró ajánlat API útvonal", () => {
     const response = await POST(keres({ verzio: 3 }, munkamenet));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(tarolo.keszitAjanlatot).toHaveBeenCalledWith(munkamenet, 3);
+    expect(tarolo.keszitAjanlatot).toHaveBeenCalledWith(munkamenet, 3, undefined);
     expect(await response.json()).toMatchObject({ fizetendoHuf: 266_812, vasarlasEngedelyezett: false });
+  });
+
+  it("kuponkódot a szervernek adja át, nem fogad el böngészőből érkező kedvezményösszeget", async () => {
+    const response = await POST(keres({ verzio: 3, kuponKod: "hc10", kedvezmenyHuf: 1 }, munkamenet));
+    expect(response.status).toBe(400);
+    expect(tarolo.keszitAjanlatot).not.toHaveBeenCalled();
+    const jo = await POST(keres({ verzio: 3, kuponKod: "hc10" }, munkamenet));
+    expect(jo.status).toBe(200);
+    expect(tarolo.keszitAjanlatot).toHaveBeenCalledWith(munkamenet, 3, "hc10");
   });
 
   it("elavult forrásadatnál átmeneti hibával jelzi, hogy az ajánlat most nem készíthető el", async () => {

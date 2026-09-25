@@ -17,10 +17,12 @@ model Product {
   brand         String
   category      String   @default("Egyéb")
   description   String   @default("")
+  longDescription String @default("")
   imageUrls     String[] @default([])
   attributes    Json     @default("[]")
   isPurchasable Boolean  @default(true)
   priceHuf      Int
+  netPriceHuf   Decimal? @db.Decimal(12, 2)
   isPublished   Boolean  @default(false)
   isTestFixture Boolean  @default(false)
   isActive      Boolean  @default(true)
@@ -34,6 +36,9 @@ model Product {
   @@index([brand, isPublished])
   kosarTetelek   KosarTetel[]
   keszlet        ProductStock?
+  ajanlokForraskent TermekAjanlo[] @relation("TermekAjanloForras")
+  ajanlokCeltermekkent TermekAjanlo[] @relation("TermekAjanloCeltermek")
+  ertekelesek    TermekErtekeles[]
 }
 
 model ProductStock {
@@ -59,6 +64,7 @@ model Kosar {
   updatedAt    DateTime     @updatedAt
   tetelek      KosarTetel[]
   ajanlatok     CheckoutQuote[]
+  kuponFelhasznalasok KuponFelhasznalas[]
 
   @@index([expiresAt])
 }
@@ -87,10 +93,13 @@ model CheckoutQuote {
   termekOsszegHuf    Int
   szallitasHuf       Int
   fizetendoHuf       Int
+  kuponKod           String?
+  kedvezmenyHuf      Int      @default(0)
   arSzabalyVerzio    Int      @default(1)
   expiresAt          DateTime
   createdAt          DateTime @default(now())
   kosar              Kosar    @relation(fields: [kosarId], references: [id], onDelete: Cascade)
+  kuponFelhasznalas  KuponFelhasznalas?
 
   @@index([kosarId, expiresAt])
   @@index([expiresAt])
@@ -125,6 +134,8 @@ model Order {
   shippingFeeHuf          Int          @default(0)
   shippingMethod          String       @default("hazhoz")
   totalHuf                Int
+  discountHuf             Int          @default(0)
+  couponCode              String?
   customerName            String       @default("")
   customerEmail           String
   customerPhone           String       @default("")
@@ -146,6 +157,9 @@ model Order {
   shipment                Shipment?
   invoices                Invoice[]
   notifications           Notification[]
+  ertekelesek             TermekErtekeles[]
+  fiokId                  String?
+  fiok                    VasarloiFiok? @relation(fields: [fiokId], references: [id], onDelete: SetNull)
 
   @@unique([sessionHash, idempotencyKey])
   @@index([status, createdAt])
@@ -289,6 +303,8 @@ model Invoice {
   externalId       String?
   invoiceNumber    String?
   privateDocumentKey String?
+  documentPdf       Bytes?
+  documentSha256    String?
   requestedAt      DateTime?
   issuedAt         DateTime?
   lastCheckedAt    DateTime?
@@ -298,6 +314,7 @@ model Invoice {
 
   @@index([orderId, state])
   @@index([state, updatedAt])
+  @@unique([orderId])
 }
 
 model Notification {
@@ -329,4 +346,182 @@ model OrderEvent {
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt])
+}
+
+model VasarloiFiok {
+  id               String                @id @default(cuid())
+  email            String                @unique
+  jelszoHash       String
+  nev              String                @default("")
+  emailIgazolvaAt  DateTime?
+  letiltvaAt       DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  munkamenetek     VasarloiMunkamenet[]
+  igazolasok       VasarloiEmailIgazolas[]
+  cimek            VasarloiCim[]
+  rendelesek       Order[]
+  ertekelesek      TermekErtekeles[]
+
+  @@index([emailIgazolvaAt, letiltvaAt])
+}
+
+model VasarloiMunkamenet {
+  id             String        @id @default(cuid())
+  fiokId         String
+  tokenHash      String        @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime      @default(now())
+  fiok           VasarloiFiok  @relation(fields: [fiokId], references: [id], onDelete: Cascade)
+
+  @@index([fiokId, expiresAt])
+  @@index([expiresAt])
+}
+
+model VasarloiEmailIgazolas {
+  id             String        @id @default(cuid())
+  fiokId         String
+  tokenHash      String        @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime      @default(now())
+  fiok           VasarloiFiok  @relation(fields: [fiokId], references: [id], onDelete: Cascade)
+
+  @@index([fiokId, expiresAt])
+}
+
+model VasarloiCim {
+  id             String        @id @default(cuid())
+  fiokId         String
+  nev            String
+  iranyitoszam   String
+  telepules      String
+  cim            String
+  alapertelmezett Boolean      @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  fiok           VasarloiFiok  @relation(fields: [fiokId], references: [id], onDelete: Cascade)
+
+  @@index([fiokId, alapertelmezett])
+}
+
+model VasarloiBelepesiProba {
+  id             String   @id @default(cuid())
+  emailHash      String
+  forrasHash     String
+  sikeres        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([emailHash, sikeres, createdAt])
+  @@index([createdAt])
+}
+
+model Kupon {
+  id                    String              @id @default(cuid())
+  kod                   String              @unique
+  tipus                 String
+  ertek                 Int
+  minimumHuf            Int                 @default(0)
+  maximumHuf            Int?
+  indulAt               DateTime
+  lejarAt               DateTime
+  felhasznalasiKeret    Int?
+  aktiv                 Boolean             @default(false)
+  osszevonhato          Boolean             @default(false)
+  kategoriak            String[]            @default([])
+  cikkszamok            String[]            @default([])
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  felhasznalasok        KuponFelhasznalas[]
+
+  @@index([aktiv, indulAt, lejarAt])
+}
+
+model KuponFelhasznalas {
+  id                 String        @id @default(cuid())
+  kuponId            String
+  kosarId            String
+  checkoutQuoteId    String        @unique
+  orderId            String?       @unique
+  allapot            String        @default("RESERVED")
+  kedvezmenyHuf      Int
+  createdAt          DateTime      @default(now())
+  usedAt             DateTime?
+  kupon              Kupon         @relation(fields: [kuponId], references: [id], onDelete: Restrict)
+  kosar              Kosar         @relation(fields: [kosarId], references: [id], onDelete: Cascade)
+  checkoutQuote      CheckoutQuote @relation(fields: [checkoutQuoteId], references: [id], onDelete: Cascade)
+
+  @@index([kuponId, allapot, createdAt])
+  @@index([kosarId, allapot])
+}
+
+model TermekAjanlo {
+  id             String   @id @default(cuid())
+  forrasTermekId String
+  celTermekId    String
+  sorrend        Int      @default(0)
+  aktiv          Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  frissitveAt    DateTime @updatedAt
+  forrasTermek   Product  @relation("TermekAjanloForras", fields: [forrasTermekId], references: [id], onDelete: Cascade)
+  celTermek      Product  @relation("TermekAjanloCeltermek", fields: [celTermekId], references: [id], onDelete: Cascade)
+
+  @@unique([forrasTermekId, celTermekId])
+  @@index([forrasTermekId, aktiv, sorrend])
+  @@index([celTermekId])
+}
+
+model HirlevelFeliratkozas {
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  hozzajarultAt         DateTime
+  hozzajarulasVerzio    String   @default("hirlevel-2026-09")
+  igazolasHash          String
+  igazolasLejarAt        DateTime
+  igazolvaAt             DateTime?
+  leiratkozasHash        String
+  leiratkozottAt         DateTime?
+  szolgaltatoiAllapot    String   @default("PENDING")
+  szolgaltatoiUzenetId   String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([igazolvaAt, leiratkozottAt])
+  @@index([igazolasLejarAt])
+}
+
+model TermekErtekeles {
+  id              String        @id @default(cuid())
+  productId       String
+  orderId         String
+  fiokId          String
+  csillag         Int
+  szoveg          String
+  allapot         String        @default("PENDING")
+  igazoltVasarlas Boolean       @default(true)
+  moderaltaId     String?
+  moderalvaAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  termek          Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  rendeles        Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  fiok            VasarloiFiok  @relation(fields: [fiokId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, productId])
+  @@index([productId, allapot, createdAt])
+  @@index([fiokId, createdAt])
+}
+
+model TartalmiOldal {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  cim         String
+  bevezeto    String
+  szekciok    Json     @default("[]")
+  kintVan     Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([kintVan, slug])
 }

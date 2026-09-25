@@ -22,6 +22,9 @@ async function main(): Promise<void> {
   console.log(`Teljes lista: ${result.complete ? "igen" : "nem, az órás biztonsági keretnél megállt"}`);
   console.log(`Forrásrekord: ${result.sourceCount}`);
   console.log(`HC-ként elfogadva: ${result.products.length}`);
+  console.log(`UNAS nettó árral érkező termékek: ${result.products.filter((product) => typeof product.netPriceHuf === "number").length}`);
+  console.log(`Részletes leírással érkező termékek: ${result.products.filter((product) => Boolean(product.longDescription)).length}`);
+  console.log(`Nettó ár nélküli HC termékek: ${result.products.filter((product) => typeof product.netPriceHuf !== "number").length}`);
   console.log(`Nem vásárolható, de engedélyezett: ${result.products.filter((product) => !product.isPurchasable).length}`);
   console.log(`Más márka miatt kizárva: ${result.excludedCount}`);
   console.log(`Engedélyező paraméter hiányzik: ${result.missingAllowCount}`);

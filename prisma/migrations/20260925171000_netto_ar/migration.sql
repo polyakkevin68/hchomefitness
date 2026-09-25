@@ -1,0 +1,1 @@
+ALTER TABLE "Product" ADD COLUMN "netPriceHuf" DECIMAL(12,2);

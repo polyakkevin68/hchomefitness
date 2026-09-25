@@ -126,6 +126,7 @@ describe.skipIf(!helyiAdatbazis)("kézi készletmegerősítéses rendelési igé
 });
 
 async function takaritRendelesiProbat(proba: Awaited<ReturnType<typeof letrehozProba>>) {
+  await prisma.notification.deleteMany({ where: { order: { publicId: { in: proba.publicIds } } } });
   await prisma.order.deleteMany({ where: { publicId: { in: proba.publicIds } } });
   await prisma.checkoutQuote.deleteMany({ where: { id: proba.ajanlat.id } });
   await prisma.kosar.deleteMany({ where: { id: proba.kosar.id } });

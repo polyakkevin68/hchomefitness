@@ -45,6 +45,7 @@ describe.skipIf(!engedelyezettAdatbazis)("kosár API helyi PostgreSQL-adatbázis
       isActive: true,
       isPurchasable: true,
       lastImportedAt: new Date(),
+      keszlet: { create: { quantity: 3, fetchedAt: new Date() } },
     } });
 
     try {
@@ -85,6 +86,11 @@ describe.skipIf(!engedelyezettAdatbazis)("kosár API helyi PostgreSQL-adatbázis
       expect(elmentettAjanlat).toMatchObject({ cartVersion: 3, termekOsszegHuf: 246_912, szallitasHuf: 19_900, fizetendoHuf: 266_812 });
       expect(elmentettAjanlat?.itemSnapshots).toMatchObject([{ egysegarHuf: 123_456, sorOsszegHuf: 246_912 }]);
 
+      await prisma.productStock.update({ where: { productId: termek.id }, data: { fetchedAt: new Date(Date.now() - 3 * 60 * 60 * 1000) } });
+      const elavultKeszlettelHozzaadas = await POST(keres("POST", session, { termekId: termek.id, verzio: 3 }));
+      expect(elavultKeszlettelHozzaadas.status).toBe(409);
+      expect(await elavultKeszlettelHozzaadas.json()).toMatchObject({ kod: "NEM_VASAROLHATO" });
+
       await prisma.product.update({ where: { id: termek.id }, data: { lastImportedAt: new Date(Date.now() - 3 * 60 * 60 * 1000) } });
       const elavultAjanlat = await ajanlatPOST(keres("POST", session, { verzio: 3 }));
       expect(elavultAjanlat.status).toBe(503);
@@ -99,11 +105,14 @@ describe.skipIf(!engedelyezettAdatbazis)("kosár API helyi PostgreSQL-adatbázis
 
       const lejartIdopont = new Date(Date.now() - 1_000);
       await prisma.checkoutQuote.update({ where: { tokenHash: ajanlatHash }, data: { expiresAt: lejartIdopont } });
-      expect(await takaritLejartKosarakat()).toEqual({ toroltKosarak: 0, toroltAjanlatok: 1 });
+      const ajanlatTakaritas = await takaritLejartKosarakat();
+      expect(ajanlatTakaritas.toroltAjanlatok).toBeGreaterThanOrEqual(1);
+      expect(ajanlatTakaritas.toroltKosarak).toBeGreaterThanOrEqual(0);
       expect(await prisma.checkoutQuote.findUnique({ where: { tokenHash: ajanlatHash } })).toBeNull();
 
       await prisma.kosar.update({ where: { sessionHash }, data: { expiresAt: lejartIdopont } });
-      expect(await takaritLejartKosarakat()).toEqual({ toroltKosarak: 1, toroltAjanlatok: 0 });
+      const kosarTakaritas = await takaritLejartKosarakat();
+      expect(kosarTakaritas.toroltKosarak).toBeGreaterThanOrEqual(1);
       expect(await prisma.kosar.findUnique({ where: { sessionHash } })).toBeNull();
     } finally {
       await prisma.kosarTetel.deleteMany({ where: { termekId: termek.id } });

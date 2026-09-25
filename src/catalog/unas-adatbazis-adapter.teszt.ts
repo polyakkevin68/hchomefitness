@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "../generated/prisma/client";
 import { createUnasDatabaseAdapter } from "./unas-adatbazis-adapter";
+import { forrasKategoriak } from "./katalogus-kategoriak";
 
 describe("UNAS termékek publikus adatbázis-adaptere", () => {
   it("csak aktív, publikált, nem próba HC termékeket kérdez le", async () => {
@@ -13,7 +14,7 @@ describe("UNAS termékek publikus adatbázis-adaptere", () => {
     const adapter = createUnasDatabaseAdapter(prisma);
     const products = await adapter.listProducts();
     expect(findMany).toHaveBeenCalledWith({
-      where: { brand: "HC Home Fitness", isActive: true, isPublished: true, isTestFixture: false },
+      where: { brand: "HC Home Fitness", isActive: true, isPublished: true, isTestFixture: false, category: { in: forrasKategoriak } },
       include: { keszlet: true },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     });
@@ -24,7 +25,7 @@ describe("UNAS termékek publikus adatbázis-adaptere", () => {
     const prisma = { product: { findMany } } as unknown as PrismaClient;
     await createUnasDatabaseAdapter(prisma, true).listProducts();
     expect(findMany).toHaveBeenCalledWith({
-      where: { brand: "HC Home Fitness", isActive: true, isTestFixture: false },
+      where: { brand: "HC Home Fitness", isActive: true, isTestFixture: false, category: { in: forrasKategoriak } },
       include: { keszlet: true },
       orderBy: [{ category: "asc" }, { name: "asc" }],
     });
@@ -62,7 +63,7 @@ describe("UNAS termékek publikus adatbázis-adaptere", () => {
     expect(findMany.mock.calls[1][0]).toMatchObject({ skip: 12, take: 12, orderBy: { priceHuf: "asc" } });
     expect(count.mock.calls[1][0].where).toMatchObject({
       brand: "HC Home Fitness", isActive: true, isPublished: true, isTestFixture: false,
-      category: "Futópadok", OR: expect.arrayContaining([{ sku: { contains: "futópad", mode: "insensitive" } }]),
+      category: { in: ["Futópadok"] }, OR: expect.arrayContaining([{ sku: { contains: "futópad", mode: "insensitive" } }]),
     });
     expect(oldal).toMatchObject({ szurtTermekekSzama: 49, osszesTermekSzama: 1_000, oldal: 2, oldalakSzama: 5, termekek: [{ sku: "HC-25" }] });
 
@@ -86,7 +87,7 @@ describe("UNAS termékek publikus adatbázis-adaptere", () => {
 
     await expect(adapter.getProductBySlug!("hc-1")).resolves.toMatchObject({ sku: "HC-1" });
     expect(findFirst).toHaveBeenCalledWith({
-      where: { brand: "HC Home Fitness", isActive: true, isPublished: true, isTestFixture: false, slug: "hc-1" },
+      where: { brand: "HC Home Fitness", isActive: true, isPublished: true, isTestFixture: false, category: { in: forrasKategoriak }, slug: "hc-1" },
       include: { keszlet: true },
     });
   });
