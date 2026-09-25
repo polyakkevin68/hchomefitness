@@ -15,7 +15,7 @@ Minden pont nyitott, amíg az ellenőrzés és bizonyíték nincs dokumentálva.
 - Nyitott: végleges domain híján kanonikus URL, sitemap és robots beállítás.
 - Ellenőrizve: 32 tesztfájl/124 teszt, lint, típusellenőrzés, Prisma-migráció és production build.
 - Ellenőrizve helyi mérésen: 1000 termék, 50 párhuzamos kliens, 10 perc, 3000 sikeres katalógus API-kérés, 0% hiba, p95 213 ms, p99 273 ms. A külön főoldal-SSR-próba p95 1022 ms volt; nem keverendő össze az API-céllal.
-- Előkészítve, még nem futott távoli környezetben: GitHub Actions PostgreSQL 17 szolgáltatás, migráció és a helyben használt Vitest konfigurációbetöltő.
+- Ellenőrizve: GitHub Actions 36127162898 alatt PostgreSQL 17, migráció, lint, típusellenőrzés, 124 teszt és production build sikeres. A worker SIGTERM-próbája az újabb CI-futásban ellenőrzendő.
 - Nem ellenőrzött: staging/TLS, külső sandboxok, mobil és billentyűzetes próba, jogi/kereskedői adatok, worker valódi jelre történő szabályos leállása és riasztás. A leállítási kódút két egységtesztje sikeres; az éles konfiguráció helyi kapcsolattal érvényes.
 
 ## Üzlet és adat

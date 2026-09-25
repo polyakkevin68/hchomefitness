@@ -37,4 +37,34 @@ jobs:
         env:
           ORDER_PRIVACY_NOTICE_VERSION: helyi-fejlesztes
           ORDER_SALES_TERMS_VERSION: helyi-fejlesztes
+      - name: Worker szabályos leállításának próbája
+        shell: bash
+        run: |
+          naplo="${RUNNER_TEMP}/worker-leallas.log"
+          node --conditions=react-server --import tsx src/worker/feldolgozo.ts >"$naplo" 2>&1 &
+          worker_pid=$!
+          takaritas() {
+            kill "$worker_pid" 2>/dev/null || true
+            wait "$worker_pid" 2>/dev/null || true
+          }
+          trap takaritas EXIT
+          for _ in {1..30}; do
+            if grep -q 'worker.started' "$naplo"; then break; fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then cat "$naplo"; exit 1; fi
+            sleep 1
+          done
+          if ! grep -q 'worker.started' "$naplo"; then cat "$naplo"; exit 1; fi
+          kill -TERM "$worker_pid"
+          for _ in {1..15}; do
+            if ! kill -0 "$worker_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$worker_pid" 2>/dev/null; then
+            echo "A worker nem állt le 15 másodpercen belül."
+            cat "$naplo"
+            exit 1
+          fi
+          wait "$worker_pid"
+          if ! grep -q 'worker.stopped' "$naplo"; then cat "$naplo"; exit 1; fi
+          cat "$naplo"
       - run: npm run build
