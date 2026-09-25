@@ -1,0 +1,7 @@
+.catalog-filters{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:16px;background:var(--white);border:1px solid var(--line);margin:0 0 22px}
+.catalog-filters label{display:grid;gap:6px;color:var(--muted);font-size:9px;letter-spacing:.05em}
+.catalog-filters input,.catalog-filters select{height:39px;min-width:155px;border:1px solid var(--line);border-radius:2px;background:white;color:var(--ink);padding:0 10px;font:11px var(--font-body)}
+.catalog-filters input{min-width:220px}
+.catalog-filters button{height:39px;border:0;border-radius:2px;background:var(--green);color:white;padding:0 18px;font:600 10px var(--font-body);cursor:pointer}
+.filter-reset{padding:13px 5px;color:var(--muted);font-size:10px}
+@media(max-width:620px){.catalog-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}.catalog-filters label:first-child{grid-column:1/-1}.catalog-filters input,.catalog-filters select{width:100%;min-width:0}.catalog-filters button{width:100%}}

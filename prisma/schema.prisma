@@ -1,0 +1,332 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  source        String
+  sourceId      String
+  sku           String   @unique
+  slug          String   @unique
+  name          String
+  brand         String
+  category      String   @default("Egyéb")
+  description   String   @default("")
+  imageUrls     String[] @default([])
+  attributes    Json     @default("[]")
+  isPurchasable Boolean  @default(true)
+  priceHuf      Int
+  isPublished   Boolean  @default(false)
+  isTestFixture Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  sourceHash    String?
+  lastImportedAt DateTime?
+  sourceUpdated DateTime?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  @@unique([source, sourceId])
+  @@index([brand, isPublished])
+  kosarTetelek   KosarTetel[]
+  keszlet        ProductStock?
+}
+
+model ProductStock {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  quantity  Float?
+  rows      Json     @default("[]")
+  fetchedAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([fetchedAt])
+}
+
+model Kosar {
+  id           String       @id @default(cuid())
+  sessionHash  String       @unique
+  version      Int          @default(0)
+  szallitasiMod String?
+  expiresAt    DateTime
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  tetelek      KosarTetel[]
+  ajanlatok     CheckoutQuote[]
+
+  @@index([expiresAt])
+}
+
+model KosarTetel {
+  id         String   @id @default(cuid())
+  kosarId    String
+  termekId   String
+  mennyiseg  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  kosar      Kosar    @relation(fields: [kosarId], references: [id], onDelete: Cascade)
+  termek     Product  @relation(fields: [termekId], references: [id], onDelete: Restrict)
+
+  @@unique([kosarId, termekId])
+  @@index([termekId])
+}
+
+model CheckoutQuote {
+  id                 String   @id @default(cuid())
+  tokenHash          String   @unique
+  kosarId            String
+  cartVersion        Int
+  itemSnapshots      Json
+  szallitasiMod      String
+  termekOsszegHuf    Int
+  szallitasHuf       Int
+  fizetendoHuf       Int
+  arSzabalyVerzio    Int      @default(1)
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  kosar              Kosar    @relation(fields: [kosarId], references: [id], onDelete: Cascade)
+
+  @@index([kosarId, expiresAt])
+  @@index([expiresAt])
+}
+
+model ImportRun {
+  id               String    @id @default(cuid())
+  source           String
+  status           String    @default("RUNNING")
+  isComplete       Boolean   @default(false)
+  receivedCount    Int       @default(0)
+  acceptedCount    Int       @default(0)
+  excludedCount    Int       @default(0)
+  invalidCount     Int       @default(0)
+  createdCount     Int       @default(0)
+  updatedCount     Int       @default(0)
+  unchangedCount   Int       @default(0)
+  deactivatedCount Int       @default(0)
+  startedAt        DateTime  @default(now())
+  finishedAt       DateTime?
+
+  @@index([source, startedAt])
+}
+
+model Order {
+  id                      String       @id @default(cuid())
+  publicId                String       @unique
+  status                  String       @default("PENDING_CONFIRMATION")
+  paymentState            String       @default("UNPAID")
+  currency                String       @default("HUF")
+  productTotalHuf         Int          @default(0)
+  shippingFeeHuf          Int          @default(0)
+  shippingMethod          String       @default("hazhoz")
+  totalHuf                Int
+  customerName            String       @default("")
+  customerEmail           String
+  customerPhone           String       @default("")
+  addressSnapshot         Json         @default("{}")
+  itemSnapshots           Json         @default("[]")
+  sourceQuoteId           String?
+  privacyNoticeVersion    String?
+  salesTermsVersion       String?
+  sessionHash             String       @default("")
+  guestAccessHash         String       @default("")
+  requestHash             String       @default("")
+  idempotencyKey          String
+  stockConfirmationNote   String?
+  stockConfirmedAt        DateTime?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+  events                  OrderEvent[]
+  paymentAttempts         PaymentAttempt[]
+  shipment                Shipment?
+  invoices                Invoice[]
+  notifications           Notification[]
+
+  @@unique([sessionHash, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([guestAccessHash])
+}
+
+model PaymentAttempt {
+  id                 String        @id @default(cuid())
+  orderId            String
+  provider           String
+  merchantRef        String        @unique
+  providerPaymentId  String?
+  state              String        @default("CREATED")
+  amountHuf          Int
+  currency           String        @default("HUF")
+  attemptNo          Int
+  paymentUrl         String?
+  idempotencyKey     String
+  expiresAt          DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  order              Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  events             PaymentEvent[]
+  refunds            Refund[]
+
+  @@unique([orderId, attemptNo])
+  @@unique([provider, providerPaymentId])
+  @@unique([orderId, idempotencyKey])
+  @@index([state, createdAt])
+}
+
+model PaymentEvent {
+  id                 String          @id @default(cuid())
+  provider           String
+  eventFingerprint   String
+  eventKey           String?
+  paymentAttemptId   String?
+  verifiedState      String?
+  receivedAt         DateTime        @default(now())
+  processedAt        DateTime?
+  paymentAttempt     PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, eventFingerprint])
+  @@index([receivedAt, processedAt])
+  @@index([paymentAttemptId, receivedAt])
+}
+
+model Refund {
+  id                 String         @id @default(cuid())
+  paymentAttemptId   String
+  amountHuf          Int
+  reason             String
+  state              String         @default("REQUESTED")
+  providerRefundId   String?
+  idempotencyKey     String         @unique
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  paymentAttempt     PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Restrict)
+
+  @@index([paymentAttemptId, state])
+}
+
+model AdminUser {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  passwordHash   String
+  role           String
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  sessions       AdminSession[]
+  auditEntries   AdminAuditLog[]
+  loginAttempts  AdminLoginAttempt[]
+
+  @@index([role, isActive])
+}
+
+model AdminSession {
+  id          String    @id @default(cuid())
+  adminUserId String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+  @@index([expiresAt])
+}
+
+model AdminLoginAttempt {
+  id             String     @id @default(cuid())
+  adminUserId    String?
+  identityHash   String
+  sourceHash     String
+  succeeded      Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  adminUser      AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([identityHash, sourceHash, succeeded, createdAt])
+}
+
+model AdminAuditLog {
+  id          String    @id @default(cuid())
+  adminUserId String?
+  action      String
+  targetType  String
+  targetId    String?
+  details     Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, createdAt])
+  @@index([targetType, targetId, createdAt])
+}
+
+model Shipment {
+  id             String   @id @default(cuid())
+  orderId        String
+  state          String   @default("PENDING")
+  carrier        String?
+  trackingNumber String?
+  trackingUrl    String?
+  idempotencyKey String   @unique
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId])
+  @@index([state, updatedAt])
+}
+
+model Invoice {
+  id               String   @id @default(cuid())
+  orderId          String
+  provider         String   @default("disabled")
+  state            String   @default("NOT_ISSUED")
+  idempotencyKey   String   @unique
+  externalId       String?
+  invoiceNumber    String?
+  privateDocumentKey String?
+  requestedAt      DateTime?
+  issuedAt         DateTime?
+  lastCheckedAt    DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, state])
+  @@index([state, updatedAt])
+}
+
+model Notification {
+  id                String   @id @default(cuid())
+  orderId           String
+  type              String
+  dedupeKey         String   @unique
+  state             String   @default("PENDING")
+  attempts          Int      @default(0)
+  providerMessageId String?
+  lastError         String?
+  sentAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([state, createdAt])
+  @@index([orderId, type, createdAt])
+}
+
+model OrderEvent {
+  id          String   @id @default(cuid())
+  orderId     String
+  fromStatus  String?
+  toStatus    String
+  actor       String
+  note        String?
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}

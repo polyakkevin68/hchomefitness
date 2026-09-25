@@ -1,0 +1,3 @@
+ALTER TABLE "Product"
+ADD COLUMN "imageUrls" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "attributes" JSONB NOT NULL DEFAULT '[]'::jsonb;

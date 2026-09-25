@@ -1,0 +1,57 @@
+{
+  "name": "hc-home-fitness-webaruhaz",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24.11 <25"
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "worker:dev": "node --conditions=react-server --import tsx src/worker/feldolgozo.ts",
+    "unas:parameterek": "node --conditions=react-server --import tsx scripts/unas-termek-parameterek.ts",
+    "unas:penznem": "node --conditions=react-server --import tsx scripts/unas-penznem.ts",
+    "unas:elozetes": "node --conditions=react-server --import tsx scripts/unas-import-elozetes.ts",
+    "unas:import:sorba": "node --conditions=react-server --import tsx scripts/unas-import-sorba.ts",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed:test": "node --conditions=react-server --import tsx prisma/fejlesztoi-seed.ts",
+    "check:production-config": "tsx scripts/eles-konfiguracio.ts",
+    "m8:terhelesi-adatok": "node --conditions=react-server --import tsx scripts/m8-terhelesi-adatok.ts",
+    "m8:terheles-meres": "node --import tsx scripts/m8-terheles-meres.ts",
+    "admin:elso-tulajdonos": "node --conditions=react-server --import tsx scripts/elso-tulajdonos-letrehozasa.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "dotenv": "^16.4.7",
+    "fast-xml-parser": "5.11.1",
+    "next": "16.3.6",
+    "pg": "^8.16.3",
+    "pg-boss": "^12.10.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "16.3.6",
+    "@types/node": "^24.7.2",
+    "@types/pg": "^8.15.5",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prisma": "^7.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^3.2.4"
+  }
+}

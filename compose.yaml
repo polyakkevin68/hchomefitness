@@ -1,0 +1,20 @@
+services:
+  adatbazis:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hc_webaruhaz
+      POSTGRES_USER: hc_dev
+      POSTGRES_PASSWORD: hc_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - hc_adatbazis:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hc_dev -d hc_webaruhaz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  hc_adatbazis:

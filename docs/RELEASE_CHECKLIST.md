@@ -1,0 +1,42 @@
+# Élesítés előtti ellenőrzőlista
+
+Minden pont nyitott, amíg az ellenőrzés és bizonyíték nincs dokumentálva.
+
+## M8 helyi eredmények
+
+- Ellenőrizve: konfigurációs tesztek élesben tiltják a fejlesztői termékmintát, a hiányzó UNAS API-kulcsot/engedélyparamétert, a nem PostgreSQL adatbázis-URL-t és a nem UNAS katalógus mellett engedélyezett rendelést.
+- Ellenőrizve: biztonsági HTTP-fejlécek egységtesztben és a futó helyi oldalon; minden API-válaszon gyorsítótár-tiltás.
+- Ellenőrizve: az egészségvégpont adatbázis-lekérdezése; adatbázishibánál 503-at ad, nem jelez hamis sikert.
+- Ellenőrizve: naplómező engedélylista és adatbázis-cím, Bearer token, kulcs/token/jelszó kitakarása.
+- Ellenőrizve: `.env` kizárása a verziókezelésből és titokértékek hiánya a production build kliens- és szerverállományaiból.
+- Ellenőrizve helyi próbán: PostgreSQL mentés és külön adatbázisba visszaállítás; 19 tábla és 13 migráció egyezett, a próbaadatok eltakarítva.
+- Ellenőrizve: production build külön helyi folyamatban nem szolgálta ki a fixture/előnézeti katalógust; 200, adatbázis-állapot, HSTS és API-gyorsítótár-fejléc rendben.
+- Kódban előkészítve: leíró meta szöveg, látható billentyűzetfókusz és csökkentett mozgás beállítás követése. Böngészős ellenőrzés még nyitott.
+- Nyitott: végleges domain híján kanonikus URL, sitemap és robots beállítás.
+- Ellenőrizve: 32 tesztfájl/124 teszt, lint, típusellenőrzés, Prisma-migráció és production build.
+- Ellenőrizve helyi mérésen: 1000 termék, 50 párhuzamos kliens, 10 perc, 3000 sikeres katalógus API-kérés, 0% hiba, p95 213 ms, p99 273 ms. A külön főoldal-SSR-próba p95 1022 ms volt; nem keverendő össze az API-céllal.
+- Előkészítve, még nem futott távoli környezetben: GitHub Actions PostgreSQL 17 szolgáltatás, migráció és a helyben használt Vitest konfigurációbetöltő.
+- Nem ellenőrzött: staging/TLS, külső sandboxok, mobil és billentyűzetes próba, jogi/kereskedői adatok, worker valódi jelre történő szabályos leállása és riasztás. A leállítási kódút két egységtesztje sikeres; az éles konfiguráció helyi kapcsolattal érvényes.
+
+## Üzlet és adat
+
+- [ ] Eladó, számlakibocsátó, szállítási és szervizfelelős adatai jóváhagyva.
+- [ ] Árképzés, ÁFA, kedvezmény és szállítási díj valós adatokkal ellenőrizve.
+- [ ] Jogi tájékoztatók és adatmegőrzés jogi/üzemeltetői jóváhagyást kaptak.
+- [ ] Minden publikált termék HC márkája és forrása igazolt.
+
+## Technika
+
+- [ ] UNAS/forrás teljes import, delta szinkron és készletkapcsolat tesztfiókkal ellenőrizve.
+- [ ] Választott készletmód párhuzamos próbával igazolva.
+- [ ] Vendégkosár, szerveroldali quote és idempotens rendelés teljes útja ellenőrizve.
+- [ ] Fizetési sandbox callback, timeout, duplikáció és visszatérítés egyeztetése sikeres.
+- [ ] Admin OIDC/MFA, szerepkör és objektumszintű hozzáférés ellenőrizve.
+- [ ] Számlázás és e-mail tesztadapterrel, duplikációvédelemmel ellenőrizve.
+- [x] Helyi PostgreSQL mentés-visszaállítása sikeres.
+- [x] 1000 termék/50 kliens/10 perces katalógus API-terhelési próba: p95 213 ms, 0% hiba.
+- [x] Alkalmazásnapló érzékeny mezőinek szűrése és titokmaszkolása tesztelt.
+- [ ] Worker valódi jelre történő leállása, production mentési cél és riasztás ellenőrizve.
+- [x] Production fixture tiltása és napló-titokmaszkolás tesztelve; a helyi production-konfiguráció ellenőrzése sikeres.
+- [ ] Mobil, billentyűzet és hozzáférhetőség ellenőrizve.
+- [ ] Domain, TLS, staging védelem és sitemap/robots beállítva.
