@@ -15,8 +15,8 @@ Minden pont nyitott, amíg az ellenőrzés és bizonyíték nincs dokumentálva.
 - Nyitott: végleges domain híján kanonikus URL, sitemap és robots beállítás.
 - Ellenőrizve: 32 tesztfájl/124 teszt, lint, típusellenőrzés, Prisma-migráció és production build.
 - Ellenőrizve helyi mérésen: 1000 termék, 50 párhuzamos kliens, 10 perc, 3000 sikeres katalógus API-kérés, 0% hiba, p95 213 ms, p99 273 ms. A külön főoldal-SSR-próba p95 1022 ms volt; nem keverendő össze az API-céllal.
-- Ellenőrizve: GitHub Actions 36127162898 alatt PostgreSQL 17, migráció, lint, típusellenőrzés, 124 teszt és production build sikeres. A worker SIGTERM-próbája az újabb CI-futásban ellenőrzendő.
-- Nem ellenőrzött: staging/TLS, külső sandboxok, mobil és billentyűzetes próba, jogi/kereskedői adatok, worker valódi jelre történő szabályos leállása és riasztás. A leállítási kódút két egységtesztje sikeres; az éles konfiguráció helyi kapcsolattal érvényes.
+- Ellenőrizve: GitHub Actions 36127543344 alatt PostgreSQL 17, migráció, lint, típusellenőrzés, 124 teszt, worker SIGTERM-leállás és production build sikeres.
+- Nem ellenőrzött: staging/TLS, külső sandboxok, mobil és billentyűzetes próba, jogi/kereskedői adatok és production riasztás. Az éles konfiguráció helyi kapcsolattal érvényes.
 
 ## Üzlet és adat
 
@@ -36,7 +36,8 @@ Minden pont nyitott, amíg az ellenőrzés és bizonyíték nincs dokumentálva.
 - [x] Helyi PostgreSQL mentés-visszaállítása sikeres.
 - [x] 1000 termék/50 kliens/10 perces katalógus API-terhelési próba: p95 213 ms, 0% hiba.
 - [x] Alkalmazásnapló érzékeny mezőinek szűrése és titokmaszkolása tesztelt.
-- [ ] Worker valódi jelre történő leállása, production mentési cél és riasztás ellenőrizve.
+- [x] Worker valódi SIGTERM-jelre történő leállása GitHub Actions alatt ellenőrizve.
+- [ ] Production mentési cél és riasztás ellenőrizve.
 - [x] Production fixture tiltása és napló-titokmaszkolás tesztelve; a helyi production-konfiguráció ellenőrzése sikeres.
 - [ ] Mobil, billentyűzet és hozzáférhetőség ellenőrizve.
 - [ ] Domain, TLS, staging védelem és sitemap/robots beállítva.
