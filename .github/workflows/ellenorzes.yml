@@ -34,4 +34,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --configLoader runner
+        env:
+          ORDER_PRIVACY_NOTICE_VERSION: helyi-fejlesztes
+          ORDER_SALES_TERMS_VERSION: helyi-fejlesztes
       - run: npm run build
